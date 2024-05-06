@@ -729,7 +729,7 @@ logDeviceAddedSuccessfullyMessage() {
 	msg+="	The configuration file can be imported into a client's WireGuard service to add a tunnel to the interface."
 	msg+="\r\n"
 	msg+="\r\n	Since it contains the client's private key, it is not recommended to keep the file on this machine"
-	msg+="\r\n	after it has been added the client; storing the private key for a WireGuard peer in multiple"
+	msg+="\r\n	after it has been added to the client; storing the private key for a WireGuard peer in multiple"
 	msg+="\r\n	locations can be a security risk."
 	msg+="\r\n"
 	msg+="\n\r"
