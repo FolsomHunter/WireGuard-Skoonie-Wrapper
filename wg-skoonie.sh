@@ -686,6 +686,7 @@ logDeviceAddedSuccessfullyMessage() {
 	local -n pNetworkValues=$1
 	
 	local greenBackground="\033[30;42m"
+	local yellowFontColor="\033[33m"
 	local resetColors="\033[0m"
 
 	local msg=""
