@@ -9,7 +9,7 @@
 ##--------------------------------------------------------------------------------------------------
 # ::Global Variables
 
-declare 
+declare serverEndpoint
 declare serverPublicKey
 declare networkAddress
 declare subnetMaskCidrNotation
