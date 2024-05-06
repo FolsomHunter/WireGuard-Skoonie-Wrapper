@@ -43,7 +43,7 @@ addDeviceToSkoonieIniFileAndGenerateClientConfigruationFile() {
 	# $8	CIDR for client and server IP addresses.
 	# $9	Folder to save to.
 	# $10	WireGuard Interface Name.
-	deviceClientConfigFilePath=$(generateClientConfigFile "$nextDeviceIndex" "${pNetworkValues["KEY_NEW_DEVICE_PRIVATE_KEY"]}" ""${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}"" "${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_SERVER_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_SERVER_ENDPOINT"]}" "${pNetworkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}" "/home/hunter/Documents" "${pNetworkValues["KEY_INTERFACE_NAME"]}")
+	deviceClientConfigFilePath=$(generateClientConfigFile "${pNetworkValues["KEY_NEW_DEVICE_INDEX"]}" "${pNetworkValues["KEY_NEW_DEVICE_PRIVATE_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_SERVER_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_SERVER_ENDPOINT"]}" "${pNetworkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}" "/home/hunter/Documents" "${pNetworkValues["KEY_INTERFACE_NAME"]}")
 	
 	addNewDeviceToSkoonieIniFile "$interfaceSkoonieIniFilePath" "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "$publicKey" "$newDeviceName" "$newDeviceDescription"
 	
@@ -910,6 +910,8 @@ readExistingDevicesIniFile() {
 	
 	# Sort the IP addresses in ascending order
     deviceIpAddressesSorted=($(printf "%s\n" "${deviceIpAddresses[@]}" | sort -V))
+	
+	pNetworkValues["KEY_NEW_DEVICE_INDEX"]=$(( ${#deviceIpAddresses[@]} + 1 ))
 	
 }
 # end of ::readExistingDevicesIniFile
