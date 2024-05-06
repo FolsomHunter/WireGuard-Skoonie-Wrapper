@@ -45,7 +45,7 @@ addDeviceToSkoonieIniFileAndGenerateClientConfigruationFile() {
 	# $10	WireGuard Interface Name.
 	deviceClientConfigFilePath=$(generateClientConfigFile "${pNetworkValues["KEY_NEW_DEVICE_INDEX"]}" "${pNetworkValues["KEY_NEW_DEVICE_PRIVATE_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_SERVER_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_SERVER_ENDPOINT"]}" "${pNetworkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}" "/home/hunter/Documents" "${pNetworkValues["KEY_INTERFACE_NAME"]}")
 	
-	addNewDeviceToSkoonieIniFile "$interfaceSkoonieIniFilePath" "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "$publicKey" "$newDeviceName" "$newDeviceDescription"
+	addNewDeviceToSkoonieIniFile "$interfaceSkoonieIniFilePath" "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_NAME"]}" "${pNetworkValues["KEY_NEW_DEVICE_DESC"]}"
 	
 	pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_ABS_PATH"]=$(realpath "${deviceClientConfigFilePath}")
 	
@@ -616,7 +616,7 @@ initializeNetworkValues() {
 	#//DEBUG HSS//
 	
 	# Get subnet mask from CIDR read in from ini file
-	local subnetMaskAsDottedDecimalNotation=$(convertCidrToSubnetMask "$subnetMaskCidrNotation")
+	local subnetMaskAsDottedDecimalNotation=$(convertCidrToSubnetMask "$pSubnetMaskAsCidrNotation")
 	
 	pNetworkValues["KEY_INTERFACE_NAME"]="${pInterfaceName}"
 
