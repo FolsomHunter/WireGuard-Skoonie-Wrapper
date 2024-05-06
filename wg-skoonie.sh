@@ -109,6 +109,7 @@ addDeviceToWireGuard() {
 # $3	New device public key.
 # $4	Name of new device.
 # $5	Description of new device.
+#
 
 addNewDeviceToSkoonieIniFile() {
 
@@ -134,7 +135,14 @@ EOF
 ##--------------------------------------------------------------------------------------------------
 # ::addNewDevice
 # 
-# zzzzzzzzzzzzz
+# Adds a new device to WireGuard and to the skoonieini files. The IP address is automatically 
+# calculated by incrementing the IP address of the highest IP address found in the skoonieini 
+# configuration file for the interface.
+#
+# $1	Interface name to add device to.
+# $2	Name of new device.
+# $3	Description of new device.
+#
 
 addNewDevice() {
 
@@ -158,7 +166,7 @@ addNewDevice() {
 	local -A networkValues
 	
 	# Read existing devices on this interface from file
-	readExistingDevicesIniFile "$interfaceSkoonieIniFilePath" networkValues
+	readInterfaceIniFile "$interfaceSkoonieIniFilePath" networkValues
 
 	# Determine the most recent IP addrress used
 	local mostRecentIpAddress="${deviceIpAddressesSorted[-1]}"
@@ -274,7 +282,7 @@ checkInterfaceValidity() {
 
 convertIpAddressDottedDecimalToInteger() {
 
-    local ipAddressAsDottedDecimal="$1"
+    local ipAddressAsDottedDecimal=$1
 	
 	local octets
 
@@ -309,7 +317,7 @@ convertIpAddressDottedDecimalToInteger() {
 
 convertIpAddressIntegerToPadded32BitBinaryString() {
 
-    local ipAddressAsInteger="$1"
+    local ipAddressAsInteger=$1
 
 	# Desired width of the binary number with padding
 	local width=32
@@ -346,7 +354,7 @@ convertIpAddressIntegerToPadded32BitBinaryString() {
 
 convertIpAddressIntegerToDottedDecimalString() {
 
-    local ipAddressAsInteger="$1"
+    local ipAddressAsInteger=$1
 
 	local -a stringArray
 
@@ -394,7 +402,7 @@ convertIpAddressIntegerToDottedDecimalString() {
 
 convertCidrToSubnetMask() {
 
-    local cidr="$1"
+    local cidr=$1
 
     # Calculate the number of network bits
     local network_bits=$(( 32 - cidr ))
@@ -843,19 +851,23 @@ outputNetworkValuesToConsole() {
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
-# ::readExistingDevicesIniFile
+# ::readInterfaceIniFile
 # 
 # Reads in the previously assigned IP addresses from the [network interface name]-assignedIPs.ini
 # file.
 #
-# Parameter 1: 	File path to ini file containing previously assigned IP addresses.
-#zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+# Parameters: 	
 #
-# On Return:	All keys read from the ini file will be stored in global array $ipAddressesKeys.
-#				All values read from the ini file will be stored in global array $ipAddressesKeys.
+# $1	File path to interface skoonieini file.
+# $2	Reference to associative array key-value pair for network values.
+#
+# Return:
+#
+#	All keys read from the ini file will be stored in global array $ipAddressesKeys.
+#	All values read from the ini file will be stored in global array $ipAddressesKeys.
 #
 
-readExistingDevicesIniFile() {
+readInterfaceIniFile() {
 	
 	local pFilePath=$1
 	local -n pNetworkValues=$2
@@ -913,22 +925,17 @@ readExistingDevicesIniFile() {
 	pNetworkValues["KEY_NEW_DEVICE_INDEX"]=$(( ${#deviceIpAddresses[@]} + 1 ))
 	
 }
-# end of ::readExistingDevicesIniFile
+# end of ::readInterfaceIniFile
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
 # ::handleUserCommand
 # 
-# Converts the passed in IP address in dotted-decimal notation (like 192.168.1.1) into its decimal 
-# equivalent.
+# Handles user commands.
 #
 # Parameters:
 #
-# $1	IP address string in dotted-decimal notation (like 192.168.1.1).
-#
-# Return:
-#
-# Returns the 32-bit integer form of the IP address.
+# Varies depending on command.
 #
 
 case "$1" in
