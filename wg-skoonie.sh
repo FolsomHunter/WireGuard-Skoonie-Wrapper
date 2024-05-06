@@ -185,7 +185,7 @@ addNewDevice() {
 		return 1
 	fi
 	
-	addDeviceToSkoonieConfigurationFiles networkValues
+	addDeviceToSkoonieIniFileAndGenerateClientConfigruationFile networkValues
 	
 	local yellowFontColor="\033[33m"
 	local resetColors="\033[0m"
