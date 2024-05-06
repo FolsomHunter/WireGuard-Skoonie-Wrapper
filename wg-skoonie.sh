@@ -45,7 +45,7 @@ addDeviceToSkoonieIniFileAndGenerateClientConfigruationFile() {
 	# $10	WireGuard Interface Name.
 	deviceClientConfigFilePath=$(generateClientConfigFile "${pNetworkValues["KEY_NEW_DEVICE_INDEX"]}" "${pNetworkValues["KEY_NEW_DEVICE_PRIVATE_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_SERVER_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_SERVER_ENDPOINT"]}" "${pNetworkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}" "/home/hunter/Documents" "${pNetworkValues["KEY_INTERFACE_NAME"]}")
 	
-	addNewDeviceToSkoonieIniFile "$interfaceSkoonieIniFilePath" "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_NAME"]}" "${pNetworkValues["KEY_NEW_DEVICE_DESC"]}"
+	addNewDeviceToSkoonieIniFile "$interfaceSkoonieIniFilePath" "${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_NAME"]}" "${pNetworkValues["KEY_NEW_DEVICE_DESC"]}"
 	
 	pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_ABS_PATH"]=$(realpath "${deviceClientConfigFilePath}")
 	
@@ -166,11 +166,22 @@ addNewDevice() {
 	
 	# Read existing devices on this interface from file
 	readInterfaceIniFile "$interfaceSkoonieIniFilePath" networkValues
-
+	
+	# Determine the index of the next device (new device)
+	networkValues["KEY_NEW_DEVICE_INDEX"]=$(( ${#deviceIpAddresses[@]} + 1 ))
+	
 	# Determine the most recent IP addrress used
-	local mostRecentIpAddress="${deviceIpAddressesSorted[-1]}"
+	local mostRecentIpAddressDottedDecimal="${deviceIpAddressesSorted[-1]}"
 
-	initializeNetworkValues "${pInterfaceName}" "${networkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}" "${networkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}" "${mostRecentIpAddress}" "${pNewDeviceName}"  "${pNewDeviceDescription}" networkValues
+	initializeNetworkValues "${pInterfaceName}" "${networkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}" "${networkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}" "${mostRecentIpAddressDottedDecimal}" networkValues
+	
+	# Calculate next consecutive IP address by adding 1 to the most recent IP address
+	local newDeviceIpAsInteger="$(( ${networkValues["KEY_MOST_RECENT_IP_ADDRESS_INTEGER"]}+1 ))"
+	
+	# Stuff user input into network values
+	setNewDeviceValues "${newDeviceIpAsInteger}" "${pNewDeviceName}" "${pNewDeviceDescription}" networkValues
+	
+	outputNetworkValuesToConsole networkValues
 	
 	# Check if IP address is allowed
 	if [[ "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET"]}" != "1" ]]
@@ -197,6 +208,80 @@ addNewDevice() {
 	
 }
 # end of ::addNewDevice
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::addNewDeviceToSkoonieOnly
+# 
+# Adds a new device to the skoonieini files but does not add the device to WireGuard. This is used
+# when a device was previously added to WireGuard, but not added to the wireguard skoonie wrapper.
+#
+# Parameters:
+#
+# $1	Interface name.
+# $2	New device public key.
+# $3	New device IP address in dotted-decimal format.
+# $4	New device name.
+# $5	New device Description.
+#
+
+addNewDeviceToSkoonieOnly() {
+
+	local pInterfaceName=$1
+	local pNewDevicePublicKey=$2
+	local pNewDeviceIpDottedDecimal=$3
+	local pNewDeviceName=$4
+	local pNewDeviceDescription=$5
+	
+	local interfaceSkoonieIniFilePath="${pInterfaceName}.skoonieini"
+	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${interfaceSkoonieIniFilePath}")
+	
+	local statusGood=0
+	
+	checkInterfaceValidity "${pInterfaceName}" "${interfaceSkoonieIniFilePath}"
+	statusGood=$?
+	
+	# Return with error if status not good
+	if [[ "${statusGood}" -ne 0 ]] ; then
+		return 1
+	fi
+	
+	local -A networkValues
+	
+	# Read existing devices on this interface from file
+	readInterfaceIniFile "$interfaceSkoonieIniFilePath" networkValues
+
+	# Determine the most recent IP addrress used
+	local mostRecentIpAddressInteger="${deviceIpAddressesSorted[-1]}"
+
+	initializeNetworkValues "${pInterfaceName}" "${networkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}" "${networkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}" "${mostRecentIpAddressInteger}" networkValues
+	
+	# Convert user inputted IP address from dotted-decimal format to integer format
+	local newDeviceIpAsInteger="$(convertIpAddressDottedDecimalToInteger "${pNewDeviceIpDottedDecimal}")"	
+	
+	# Stuff user input into network values
+	setNewDeviceValues "${newDeviceIpAsInteger}" "${pNewDeviceName}" "${pNewDeviceDescription}" networkValues
+	
+	# Check if IP address is allowed
+	if [[ "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET"]}" != "1" ]]
+	then
+		logErrorMessage	"${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET_MSG"]}"
+		return 1
+	fi
+	
+	# Private key is not known since user only supplies public key. Not necessary anyways since
+	# client tunnel configuration file will not be generated
+	networkValues["KEY_NEW_DEVICE_PRIVATE_KEY"]=""
+	
+    # Public key was provided by user
+	networkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]="${pNewDevicePublicKey}"
+	
+	addNewDeviceToSkoonieIniFile "$interfaceSkoonieIniFilePath" "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${networkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${networkValues["KEY_NEW_DEVICE_NAME"]}" "${networkValues["KEY_NEW_DEVICE_DESC"]}"
+	
+	logDeviceAddedToSkoonieOnlySuccessfullyMessage networkValues
+
+}
+# end of ::addNewDeviceToSkoonieOnly
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
@@ -423,90 +508,6 @@ convertCidrToSubnetMask() {
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
-# ::determineIpAddressForNewDevice
-# 
-# Determines the next consecutive IP address after the most recent IP address.
-#
-# For example, if the most recent IP address is 10.8.8.1, the next IP address is 10.8.8.2.
-#
-# The next IP address is saved in integer value format, binary value with padding format, and 
-# dotted-decimal format in the passed in array.
-#
-# Whether or not the next IP address is a valid IP address within the subnet is also saved in the
-# passed in array.
-#
-# Parameters:
-#
-# $1	Reference to associative array key-value pair for network values. Will be modified.
-#
-# Return:
-#
-# All initialized values are stored in the passed networkValues array as key-value pairs. 
-#
-# Key-value pairs stored:
-#
-# KEY_NEW_DEVICE_IP_ADDRESS_INTEGER								next consecutive IP address integer format
-# KEY_NEW_DEVICE_IP_ADDRESS_BINARY_WITH_PADDING					next consecutive IP address binary with padding format
-# KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL						next consecutive IP address dotted-decimal format
-#
-# KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_INTEGER				base address of next consecutive IP address integer format
-# KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_BINARY_WITH_PADDING	base address of next consecutive IP address binary with padding format
-# KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_DOTTED_DECIMAL			base address of next consecutive IP address dotted-decimal format
-#
-# KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET						0 if NOT in subnet or if equal to network address or broadcast address.
-#																1 if in subnet.
-#
-# KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET_MSG					Descriptive message about whether or not the next IP address is in the subnet.
-#
-
-determineIpAddressForNewDevice() {
-
-	local -n ppNetworkValues=$1
-
-	ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_INTEGER"]="$(( ${ppNetworkValues["KEY_MOST_RECENT_IP_ADDRESS_INTEGER"]}+1 ))"
-	ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_BINARY_WITH_PADDING"]="$(convertIpAddressIntegerToPadded32BitBinaryString "${ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_INTEGER"]}")"
-	ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]="$(convertIpAddressIntegerToDottedDecimalString "${ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_INTEGER"]}")"
-	
-	ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_INTEGER"]="$(( ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_INTEGER"] & ppNetworkValues["KEY_SUBNET_MASK_INTEGER"] ))"
-	ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_BINARY_WITH_PADDING"]="$(convertIpAddressIntegerToPadded32BitBinaryString "${ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_INTEGER"]}")"
-	ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_DOTTED_DECIMAL"]="$(convertIpAddressIntegerToDottedDecimalString "${ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_INTEGER"]}")"
-	
-	local isInSubnet
-	local msg
-	
-	if [[ "${ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_INTEGER"]}" -eq "${ppNetworkValues["KEY_NETWORK_ADDRESS_INTEGER"]}" ]]
-	then
-		
-		isInSubnet="0"
-		msg="Next IP address ${ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]} is INVALID because it is equal to the network address."
-
-	elif [[ "${ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_INTEGER"]}" -eq "${pppNetworkValues["KEY_BROADCAST_ADDRESS_INTEGER"]}" ]]
-	then
-
-		isInSubnet="0"
-		msg="Next IP address ${ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]} is INVALID because it is equal to the broadcast address."
-
-	elif [[ "${ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_INTEGER"]}" -eq "${ppNetworkValues["KEY_NETWORK_ADDRESS_BASE_ADDRESS_INTEGER"]}" ]]
-	then
-
-		isInSubnet="1"
-		msg="Next IP address ${ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]} is VALID because it is within the subnet and not equal to the network address or the broadcast address."
-			
-	else
-	
-		isInSubnet="0"
-		msg="Next IP address ${ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]} is INVALID because it is not within the subnet."
-		
-	fi
-	
-	ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET"]="${isInSubnet}"
-	ppNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET_MSG"]="${msg}"
-	
-}
-# end of ::determineIpAddressForNewDevice
-##--------------------------------------------------------------------------------------------------
-
-##--------------------------------------------------------------------------------------------------
 # ::generateClientConfigFile
 # 
 # Generates the client configuration file using the passed in parameters.
@@ -586,13 +587,11 @@ EOF
 # $2	Subnet mask in CIDR notation format.
 # $3	Network address in dotted-decimal format.
 # $4	Most recently saved IP address in dotted-decimal format.
-# $5	Name of new device to be added.
-# $6	Description of new device to be added.
-# $7	Reference to associative array key-value pair for network values. Will be modified.
+# $5	Reference to associative array key-value pair for network values. Will be modified.
 #
 # Return:
 #
-# All initialized values are stored in the passed networkValues array as key-value pairs. 
+# All initialized values are stored in the passed in networkValues array as key-value pairs. 
 #
 
 initializeNetworkValues() {
@@ -601,9 +600,7 @@ initializeNetworkValues() {
 	local pSubnetMaskAsCidrNotation=$2
 	local pNetworkAddressAsDottedDecimalString=$3
     local pMostRecentIpAddressAsDottedDecimalString=$4
-	local pNewDeviceName=$5
-	local pNewDeviceDescription=$6
-	local -n pNetworkValues=$7
+	local -n pNetworkValues=$5
 	
 	# Get subnet mask from CIDR read in from ini file
 	local subnetMaskAsDottedDecimalNotation=$(convertCidrToSubnetMask "$pSubnetMaskAsCidrNotation")
@@ -633,13 +630,6 @@ initializeNetworkValues() {
 	pNetworkValues["KEY_MOST_RECENT_IP_ADDRESS_INTEGER"]="$(convertIpAddressDottedDecimalToInteger "${pMostRecentIpAddressAsDottedDecimalString}")"
 	pNetworkValues["KEY_MOST_RECENT_IP_ADDRESS_BINARY_WITH_PADDING"]="$(convertIpAddressIntegerToPadded32BitBinaryString "${pNetworkValues["KEY_MOST_RECENT_IP_ADDRESS_INTEGER"]}")"
 	pNetworkValues["KEY_MOST_RECENT_IP_ADDRESS_DOTTED_DECIMAL"]="$(convertIpAddressIntegerToDottedDecimalString "${pNetworkValues["KEY_MOST_RECENT_IP_ADDRESS_INTEGER"]}")"
-	
-	pNetworkValues["KEY_NEW_DEVICE_NAME"]="${pNewDeviceName}"
-	pNetworkValues["KEY_NEW_DEVICE_DESC"]="${pNewDeviceDescription}"
-	
-	determineIpAddressForNewDevice pNetworkValues
-	
-	outputNetworkValuesToConsole pNetworkValues
 	
 }
 # end of ::initializeNetworkValues
@@ -728,7 +718,6 @@ logDeviceAddedSuccessfullyMessage() {
 	msg+="\r\n	Since it contains the client's private key, it is not recommended to keep the file on this machine"
 	msg+="\r\n	after it has been added to the client; storing the private key for a WireGuard peer in multiple"
 	msg+="\r\n	locations can be a security risk."
-	msg+="\r\n"
 	msg+="\n\r"
 	msg+="${greenBackground}"
 	msg+="\n\r"
@@ -741,6 +730,66 @@ logDeviceAddedSuccessfullyMessage() {
 	
 }
 # end of ::logDeviceAddedSuccessfullyMessage
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::logDeviceAddedToSkoonieOnlySuccessfullyMessage
+# 
+# Logs success message telling user that device was successfully added.
+#
+# Parameters:
+#
+# $1	Reference to network values containing information that can be used in the message.
+#
+
+logDeviceAddedToSkoonieOnlySuccessfullyMessage() {
+
+	local -n pNetworkValues=$1
+	
+	local greenBackground="\033[30;42m"
+	local resetColors="\033[0m"
+
+	local msg=""
+	
+	msg+="${greenBackground}"
+	msg+="\n\r"
+	msg+="	!! SUCCESS !! start"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r	Device was successfully added to the wg-skoonie wrapper for interface '${pNetworkValues["KEY_INTERFACE_NAME"]}'."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Device IP Address	${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}"
+	msg+="\r\n"
+	msg+="	Device Public Key	${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}"
+	msg+="\r\n"
+	msg+="	Device Name		${pNetworkValues["KEY_NEW_DEVICE_NAME"]}"
+	msg+="\r\n"
+	msg+="	Device Description	${pNetworkValues["KEY_NEW_DEVICE_DESC"]}"
+	msg+="\r\n"
+	msg+="\r\n"
+	msg+="	Please note that the device was NOT added to WireGuard, only to the skoonieini configuration files."
+	msg+="\r\n"
+	msg+="	This command is used when a device was already added to WireGuard but want it to be tracked using"
+	msg+="\r\n"
+	msg+="	the wg-skoonie wrapper."
+	msg+="\r\n"
+	msg+="\r\n"
+	msg+="	A tunnel configuration file for the newly added device was not generated because it is assumed the"
+	msg+="\r\n"
+	msg+="	device was previously configured."
+	msg+="\n\r"
+	msg+="${greenBackground}"
+	msg+="\n\r"
+	msg+="	!! SUCCESS !! end"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	
+	printf "${msg}"
+	
+}
+# end of ::logDeviceAddedToSkoonieOnlySuccessfullyMessage
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
@@ -923,11 +972,101 @@ readInterfaceIniFile() {
 	
 	# Sort the IP addresses in ascending order
     deviceIpAddressesSorted=($(printf "%s\n" "${deviceIpAddresses[@]}" | sort -V))
-	
-	pNetworkValues["KEY_NEW_DEVICE_INDEX"]=$(( ${#deviceIpAddresses[@]} + 1 ))
-	
+
 }
 # end of ::readInterfaceIniFile
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::setNewDeviceValues
+# 
+# Sets the new devie values using the passed in values.
+#
+#
+# Whether or not the next IP address is a valid IP address within the subnet is also saved in the
+# passed in pNetworkValues.
+#
+# Parameters:
+#
+# $1	New device IP address in integer format.
+# $2	New device name.
+# $3	New device description.
+# $4	Reference to associative array key-value pair for network values. Will be modified.
+#
+# Return:
+#
+# All initialized values are stored in the passed networkValues array as key-value pairs. 
+#
+# Key-value pairs stored:
+#
+# KEY_NEW_DEVICE_IP_ADDRESS_INTEGER								Next consecutive IP address integer format.
+# KEY_NEW_DEVICE_IP_ADDRESS_BINARY_WITH_PADDING					Next consecutive IP address binary with padding format.
+# KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL						Next consecutive IP address dotted-decimal format.
+#
+# KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_INTEGER				Base address of next consecutive IP address integer format.
+# KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_BINARY_WITH_PADDING	Base address of next consecutive IP address binary with padding format.
+# KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_DOTTED_DECIMAL			Base address of next consecutive IP address dotted-decimal format.
+#
+# KEY_NEW_DEVICE_NAME											Name of new device.
+# KEY_NEW_DEVICE_DESC											Name of new description.
+#
+# KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET						0 if NOT in subnet or if equal to network address or broadcast address.
+#																1 if in subnet.
+#
+# KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET_MSG					Descriptive message about whether or not the next IP address is in the subnet.
+#
+
+setNewDeviceValues() {
+
+	local pNewDeviceIpInteger1046=$1
+	local pNewDeviceName1046=$2
+	local pNewDeviceDescription1046=$3
+	local -n pNetworkValues1046=$4
+
+	pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_INTEGER"]="$(( ${pNewDeviceIpInteger1046} ))"
+	pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_BINARY_WITH_PADDING"]="$(convertIpAddressIntegerToPadded32BitBinaryString "${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_INTEGER"]}")"
+	pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]="$(convertIpAddressIntegerToDottedDecimalString "${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_INTEGER"]}")"
+	
+	pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_INTEGER"]="$(( pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_INTEGER"] & pNetworkValues1046["KEY_SUBNET_MASK_INTEGER"] ))"
+	pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_BINARY_WITH_PADDING"]="$(convertIpAddressIntegerToPadded32BitBinaryString "${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_INTEGER"]}")"
+	pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_DOTTED_DECIMAL"]="$(convertIpAddressIntegerToDottedDecimalString "${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_INTEGER"]}")"
+	
+	pNetworkValues1046["KEY_NEW_DEVICE_NAME"]="${pNewDeviceName1046}"
+	pNetworkValues1046["KEY_NEW_DEVICE_DESC"]="${pNewDeviceDescription1046}"
+	
+	local isInSubnet
+	local msg
+	
+	if [[ "${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_INTEGER"]}" -eq "${pNetworkValues1046["KEY_NETWORK_ADDRESS_INTEGER"]}" ]]
+	then
+		
+		isInSubnet="0"
+		msg="Next IP address ${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]} is INVALID because it is equal to the network address."
+
+	elif [[ "${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_INTEGER"]}" -eq "${ppNetworkValues1046["KEY_BROADCAST_ADDRESS_INTEGER"]}" ]]
+	then
+
+		isInSubnet="0"
+		msg="Next IP address ${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]} is INVALID because it is equal to the broadcast address."
+
+	elif [[ "${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_INTEGER"]}" -eq "${pNetworkValues1046["KEY_NETWORK_ADDRESS_BASE_ADDRESS_INTEGER"]}" ]]
+	then
+
+		isInSubnet="1"
+		msg="Next IP address ${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]} is VALID because it is within the subnet and not equal to the network address or the broadcast address."
+			
+	else
+	
+		isInSubnet="0"
+		msg="Next IP address ${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]} is INVALID because it is not within the subnet."
+		
+	fi
+	
+	pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET"]="${isInSubnet}"
+	pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET_MSG"]="${msg}"
+	
+}
+# end of ::setNewDeviceValues
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
@@ -942,8 +1081,17 @@ readInterfaceIniFile() {
 
 case "$1" in
 			
-	"-add-device")
-		addNewDevice $2 $3 $4
+	"addDevice")
+		addNewDevice "${2}" "${3}" "${4}"
+		;;
+
+	"addDeviceSkoonieOnly")
+		# $2	Interface name.
+		# $3	Device public key.
+		# $4	Device IP address.
+		# $5	Device name.
+		# $6	Device Description.
+		addNewDeviceToSkoonieOnly "${2}" "${3}" "${4}" "${5}" "${6}"
 		;;
 
 esac
