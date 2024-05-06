@@ -74,7 +74,6 @@ addDeviceToWireGuard() {
 	# Add device to WireGuard
 	addDeviceToWireGuardCmd='wg set '"${pNetworkValues["KEY_INTERFACE_NAME"]}"' peer '"${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}"' allowed-ips "'"${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}"'"  2>&1'
 	
-	
 	addDeviceWireGuardOutput=$(eval "${addDeviceToWireGuardCmd}")
 	
 	listDevicesWireGuard=$(sudo wg)
@@ -874,47 +873,59 @@ readInterfaceIniFile() {
 
 	# Read in all key-value pairs in the file
 	if [ -f "${pFilePath}" ]; then
-		while IFS='=' read -r key value; do
+		 while IFS='' read -r line; do
 		
-			if [[ ! "$key" =~ ^[[:space:]]*$ && ! "$key" =~ ^# && ! "$key" =~ ^\[ ]]; then
-			
-				case "$key" in
-				
-					"Server Public Key")
-						pNetworkValues["KEY_SERVER_PUBLIC_KEY"]="${value}"
-						;;
-					
-					"Server Endpoint")
-						pNetworkValues["KEY_SERVER_ENDPOINT"]="${value}"
-						;;
-				
-					"Network Address")
-						pNetworkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]="${value}"
-						;;
-				
-					"Subnet Mask CIDR Notation")
-						pNetworkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]="${value}"
-						;;
-				
-					"IP Address")
-						deviceIpAddresses+=("$value")
-						;;
-						
-					"Public Key")
-						devicePublicKeys+=("$value")
-						;;
-						
-					"Name")
-						deviceNames+=("$value")
-						;;
-						
-					"Description")
-						deviceDescriptions+=("$value")
-						;;
-				
-				esac
+			# Remove leading and trailing whitespaces
+            line=$(echo "$line" | xargs)
 
-			fi
+            # Skip empty lines and lines that start with # or [
+            if [[ "$line" =~ ^[[:space:]]*$ || "$line" =~ ^# || "$line" =~ ^\[ ]]; then
+                continue
+            fi
+
+            # Split the line at the first equals sign
+            key="${line%%=*}"
+            value="${line#*=}"
+
+            # Trim whitespace from key and value after splitting
+            key=$(echo "$key" | xargs)
+            value=$(echo "$value" | xargs)
+			
+			case "$key" in
+			
+				"Server Public Key")
+					pNetworkValues["KEY_SERVER_PUBLIC_KEY"]="${value}"
+					;;
+				
+				"Server Endpoint")
+					pNetworkValues["KEY_SERVER_ENDPOINT"]="${value}"
+					;;
+			
+				"Network Address")
+					pNetworkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]="${value}"
+					;;
+			
+				"Subnet Mask CIDR Notation")
+					pNetworkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]="${value}"
+					;;
+			
+				"IP Address")
+					deviceIpAddresses+=("$value")
+					;;
+					
+				"Public Key")
+					devicePublicKeys+=("$value")
+					;;
+					
+				"Name")
+					deviceNames+=("$value")
+					;;
+					
+				"Description")
+					deviceDescriptions+=("$value")
+					;;
+			
+			esac
 			
 		done < "$pFilePath"
 	fi
