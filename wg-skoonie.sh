@@ -605,15 +605,6 @@ initializeNetworkValues() {
 	local pNewDeviceDescription=$6
 	local -n pNetworkValues=$7
 	
-	#//DEBUG HSS//
-	echo "pInterfaceName=${pInterfaceName}"
-	echo "pSubnetMaskAsCidrNotation=${pSubnetMaskAsCidrNotation}"
-	echo "pNetworkAddressAsDottedDecimalString=${pNetworkAddressAsDottedDecimalString}"
-	echo "pMostRecentIpAddressAsDottedDecimalString=${pMostRecentIpAddressAsDottedDecimalString}"
-	echo "pNewDeviceName=${pNewDeviceName}"
-	echo "pNewDeviceDescription=${pNewDeviceDescription}"
-	#//DEBUG HSS//
-	
 	# Get subnet mask from CIDR read in from ini file
 	local subnetMaskAsDottedDecimalNotation=$(convertCidrToSubnetMask "$pSubnetMaskAsCidrNotation")
 	
