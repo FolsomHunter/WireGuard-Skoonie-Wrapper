@@ -219,6 +219,9 @@ checkInterfaceValidity() {
 	
 	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${pInterfaceSkoonieIniFilePath}")
 	
+	local yellowFontColor="\033[33m"
+	local resetColors="\033[0m"
+	
 	statusGood=0
 
 	wg show "${pInterfaceName}" &> /dev/null
@@ -233,7 +236,7 @@ checkInterfaceValidity() {
 		errorMsg+="\n\r"
 		errorMsg+="\n\r	File path  used for skoonieini configruation file:"
 		errorMsg+="\n\r"
-		errorMsg+="\n\r		${interfaceSkoonieIniFileAbsolutePath}"
+		errorMsg+="\n\r		${yellowFontColor}${interfaceSkoonieIniFileAbsolutePath}${resetColors}"
 		logErrorMessage "${errorMsg}"
 		statusGood=1
 	elif [[ $interfaceExistsInWireGuard -ne 0 ]]; then
@@ -245,7 +248,7 @@ checkInterfaceValidity() {
 		errorMsg+="\n\r"
 		errorMsg+="\n\r	File path expected for skoonieini configruation file:"
 		errorMsg+="\n\r"
-		errorMsg+="\n\r		${interfaceSkoonieIniFileAbsolutePath}"
+		errorMsg+="\n\r		${yellowFontColor}${interfaceSkoonieIniFileAbsolutePath}${resetColors}"
 		logErrorMessage "${errorMsg}"
 		statusGood=1
 	fi
