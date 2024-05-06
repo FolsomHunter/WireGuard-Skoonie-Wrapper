@@ -162,7 +162,6 @@ addNewDevice() {
 
 	# Determine the most recent IP addrress used
 	local mostRecentIpAddress="${deviceIpAddressesSorted[-1]}"
-	echo "mostRecentIpAddress=${mostRecentIpAddress}"
 
 	initializeNetworkValues "${pInterfaceName}" "${networkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}" "${networkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}" "${mostRecentIpAddress}" "${pNewDeviceName}"  "${pNewDeviceDescription}" networkValues
 	
@@ -186,9 +185,6 @@ addNewDevice() {
 	fi
 	
 	addDeviceToSkoonieIniFileAndGenerateClientConfigruationFile networkValues
-	
-	local yellowFontColor="\033[33m"
-	local resetColors="\033[0m"
 	
 	logDeviceAddedSuccessfullyMessage networkValues
 	
