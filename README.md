@@ -19,4 +19,4 @@ It helps with the following:
 
 \>\> auomatically generates the tunnel configuration file for the client device when a device is added.
 
-For a more comprehensive list of what this program can do, run "./wg-skoonie.sh --help
+For a more comprehensive list of what this program can do, run "./wg-skoonie.sh --help"
