@@ -21,7 +21,7 @@ It helps with the following:
 
 ## Supported Commands
 
-### addInterface [Interface Name] [Server Endpoint] [Listening Port] [Network Address] [Subnet Mask CIDR Notation] [Server IP Address on VPN]
+`**addInterface [Interface Name] [Server Endpoint] [Listening Port] [Network Address] [Subnet Mask CIDR Notation] [Server IP Address on VPN]**`
 
 Adds a new WireGuard interface.
 	 
