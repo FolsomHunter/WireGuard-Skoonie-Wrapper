@@ -23,6 +23,6 @@ Supported Commands
 
 `addInterface [Interface Name] [Server Endpoint] [Listening Port] [Network Address] [Subnet Mask CIDR Notation] [Server IP Address on VPN]`
 
-	 Adds a new WireGuard interface.
+&emsp;Adds a new WireGuard interface.
 	 
-	This does NOT check to see if a previous interface with the same name already exists. It is the responsibility of the user to verify this to ensure there are no conflicts.
+&emsp;This does NOT check to see if a previous interface with the same name already exists. It is the responsibility of the user to verify this to ensure there are no conflicts.
