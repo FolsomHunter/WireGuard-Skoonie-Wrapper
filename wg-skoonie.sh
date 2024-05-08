@@ -27,7 +27,7 @@
 # ::Global Variables
 
 readonly PROGRAM_NAME="WireGuard Skoonie Wrapper"
-readonly VERSION_NUMBER="1.0.0"
+readonly VERSION_NUMBER="1.0.1"
 
 readonly WG_SKOONIE_INTERFACES_FOLDER_PATH="interfaces"
 readonly WG_INTERFACES_FOLDER_PATH="/etc/wireguard"
@@ -169,7 +169,7 @@ addDevice() {
 	local pNewDeviceDescription=$3
 	
 	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
-	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${interfaceSkoonieIniFilePath}")
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}${interfaceSkoonieIniFilePath}"
 	
 	local statusGood=0
 	
@@ -259,7 +259,7 @@ addDeviceToSkoonieOnly() {
 	local pNewDeviceDescription=$5
 	
 	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
-	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${interfaceSkoonieIniFilePath}")
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}${interfaceSkoonieIniFilePath}"
 	
 	local statusGood=0
 	
@@ -489,8 +489,7 @@ checkInterfaceValidity() {
 
 	local pInterfaceName=$1
 	local pInterfaceSkoonieIniFilePath=$2
-	
-	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${pInterfaceSkoonieIniFilePath}")
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}/${pInterfaceSkoonieIniFilePath}"
 	
 	local yellowFontColor="\033[33m"
 	local resetColors="\033[0m"
@@ -510,7 +509,7 @@ checkInterfaceValidity() {
 		errorMsg+="\n	File path  used for skoonieini configruation file:"
 		errorMsg+="\n"
 		errorMsg+="\n		${yellowFontColor}${interfaceSkoonieIniFileAbsolutePath}${resetColors}"
-		logDeviceNotAddedSuccessfullyMessage "${errorMsg}"
+		logErrorMessage "${errorMsg}"
 		statusGood=1
 	elif [[ $interfaceExistsInWireGuard -ne 0 ]]; then
 		logErrorMessage "Interface '${pInterfaceName}' cannot be found in WireGuard."
@@ -522,7 +521,7 @@ checkInterfaceValidity() {
 		errorMsg+="\n	File path expected for skoonieini configruation file:"
 		errorMsg+="\n"
 		errorMsg+="\n		${yellowFontColor}${interfaceSkoonieIniFileAbsolutePath}${resetColors}"
-		logDeviceNotAddedSuccessfullyMessage "${errorMsg}"
+		logErrorMessage "${errorMsg}"
 		statusGood=1
 	fi
 	
@@ -1626,7 +1625,7 @@ removeDeviceByIndex() {
 	local pDeviceToRemoveIndex=$2
 
 	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
-	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${interfaceSkoonieIniFilePath}")
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}${interfaceSkoonieIniFilePath}"
 	
 	local statusGood=0
 	
@@ -1762,7 +1761,7 @@ removeInterface() {
 	local sanitizedInterfaceName="${pInterfaceName// /-}"
 	
 	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}/${sanitizedInterfaceName}.skoonieini"
-	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${interfaceSkoonieIniFilePath}")
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}${interfaceSkoonieIniFilePath}"
 	
 	local -A networkValues
 	readInterfaceIniFile "$interfaceSkoonieIniFilePath" networkValues
@@ -1979,7 +1978,7 @@ setNewDeviceValues() {
 		isInSubnet="0"
 		msg="Next IP address ${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]} is INVALID because it is equal to the network address."
 
-	elif [[ "${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_INTEGER"]}" -eq "${ppNetworkValues1046["KEY_BROADCAST_ADDRESS_INTEGER"]}" ]]
+	elif [[ "${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_INTEGER"]}" -eq "${pNetworkValues1046["KEY_BROADCAST_ADDRESS_INTEGER"]}" ]]
 	then
 
 		isInSubnet="0"
@@ -2087,7 +2086,7 @@ showInterfaceDetailsFromSkoonieIniFiles() {
 	pInterfaceName=$1
 
 	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
-	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${interfaceSkoonieIniFilePath}")
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}${interfaceSkoonieIniFilePath}"
 	
 	local statusGood=0
 	
@@ -2197,7 +2196,7 @@ showInterfaceDetailsFromWireGuard() {
 	pInterfaceName=$1
 
 	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
-	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${interfaceSkoonieIniFilePath}")
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}${interfaceSkoonieIniFilePath}"
 	
 	local statusGood=0
 	
