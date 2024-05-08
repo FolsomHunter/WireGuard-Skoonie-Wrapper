@@ -19,4 +19,10 @@ It helps with the following:
 
 \>\> auomatically generates the tunnel configuration file for the client device when a device is added.
 
-For a more comprehensive list of what this program can do, run "./wg-skoonie.sh --help"
+Supported Commands
+
+`addInterface [Interface Name] [Server Endpoint] [Listening Port] [Network Address] [Subnet Mask CIDR Notation] [Server IP Address on VPN]`
+
+	 Adds a new WireGuard interface.
+	 
+	This does NOT check to see if a previous interface with the same name already exists. It is the responsibility of the user to verify this to ensure there are no conflicts.
