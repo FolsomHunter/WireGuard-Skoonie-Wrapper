@@ -12,10 +12,6 @@
 readonly WG_SKOONIE_INTERFACES_FOLDER_PATH="interfaces"
 readonly WG_INTERFACES_FOLDER_PATH="/etc/wireguard"
 
-declare serverEndpoint
-declare serverPublicKey
-declare networkAddress
-declare subnetMaskCidrNotation
 declare -a deviceIpAddresses
 declare -a devicePublicKeys
 declare -a deviceNames
