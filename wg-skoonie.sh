@@ -9,6 +9,9 @@
 ##--------------------------------------------------------------------------------------------------
 # ::Global Variables
 
+readonly WG_SKOONIE_INTERFACES_FOLDER_PATH="interfaces"
+readonly WG_INTERFACES_FOLDER_PATH="/etc/wireguard"
+
 declare serverEndpoint
 declare serverPublicKey
 declare networkAddress
@@ -43,9 +46,9 @@ addDeviceToSkoonieIniFileAndGenerateClientConfigruationFile() {
 	# $8	CIDR for client and server IP addresses.
 	# $9	Folder to save to.
 	# $10	WireGuard Interface Name.
-	deviceClientConfigFilePath=$(generateClientConfigFile "${pNetworkValues["KEY_NEW_DEVICE_INDEX"]}" "${pNetworkValues["KEY_NEW_DEVICE_PRIVATE_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_SERVER_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_SERVER_ENDPOINT"]}" "${pNetworkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}" "/home/hunter/Documents" "${pNetworkValues["KEY_INTERFACE_NAME"]}")
+	deviceClientConfigFilePath=$(generateClientConfigFile "${pNetworkValues["KEY_NEW_DEVICE_INDEX"]}" "${pNetworkValues["KEY_NEW_DEVICE_PRIVATE_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_SERVER_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_SERVER_ENDPOINT"]}" "${pNetworkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}" "${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}" "${pNetworkValues["KEY_INTERFACE_NAME"]}")
 	
-	addNewDeviceToSkoonieIniFile "$interfaceSkoonieIniFilePath" "${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_NAME"]}" "${pNetworkValues["KEY_NEW_DEVICE_DESC"]}"
+	addDeviceToSkoonieIniFile "$interfaceSkoonieIniFilePath" "${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_NAME"]}" "${pNetworkValues["KEY_NEW_DEVICE_DESC"]}"
 	
 	pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_ABS_PATH"]=$(realpath "${deviceClientConfigFilePath}")
 	
@@ -82,12 +85,12 @@ addDeviceToWireGuard() {
 	addToWireGuardWasSuccessful=$?
 	
 	if [[ ${addToWireGuardWasSuccessful} != "0" ]] ; then
-		errorMessage="Failed to add device to WireGuard."
-		errorMessage+="\n\r\n\r	Command used:"
-		errorMessage+="\n\r\n\r		${addDeviceToWireGuardCmd}"
-		errorMessage+="\n\r\n\r	Output message from WireGuard after command: "
-		errorMessage+="\n\r\n\r		${addDeviceWireGuardOutput}"
-		logErrorMessage	"${errorMessage}"
+		local errorMessage="	Failed to add device to WireGuard."
+		errorMessage+="\n\n\r\r	Command used:"
+		errorMessage+="\n\n\r\r		${addDeviceToWireGuardCmd}"
+		errorMessage+="\n\n\r\r	Output message from WireGuard after command: "
+		errorMessage+="\n\n\r\r		${addDeviceWireGuardOutput}"
+		logDeviceNotAddedSuccessfullyMessage "${errorMessage}"
 		return 1
 	fi
 	
@@ -98,7 +101,7 @@ addDeviceToWireGuard() {
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
-# ::addNewDeviceToSkoonieIniFile
+# ::addDeviceToSkoonieIniFile
 # 
 # Adds a new device to the skoonie ini file for the WireGuard interface.
 #
@@ -110,7 +113,7 @@ addDeviceToWireGuard() {
 # $5	Description of new device.
 #
 
-addNewDeviceToSkoonieIniFile() {
+addDeviceToSkoonieIniFile() {
 
 	local pSkoonieIniFilePath=$1
 	local pNewIpAddress=$2
@@ -128,11 +131,11 @@ Description=${pNewDeviceDescription}
 EOF
 
 }
-# end of ::addNewDeviceToSkoonieIniFile
+# end of ::addDeviceToSkoonieIniFile
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
-# ::addNewDevice
+# ::addDevice
 # 
 # Adds a new device to WireGuard and to the skoonieini files. The IP address is automatically 
 # calculated by incrementing the IP address of the highest IP address found in the skoonieini 
@@ -143,13 +146,13 @@ EOF
 # $3	Description of new device.
 #
 
-addNewDevice() {
+addDevice() {
 
 	local pInterfaceName=$1
 	local pNewDeviceName=$2
 	local pNewDeviceDescription=$3
 	
-	local interfaceSkoonieIniFilePath="${pInterfaceName}.skoonieini"
+	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
 	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${interfaceSkoonieIniFilePath}")
 	
 	local statusGood=0
@@ -170,8 +173,14 @@ addNewDevice() {
 	# Determine the index of the next device (new device)
 	networkValues["KEY_NEW_DEVICE_INDEX"]=$(( ${#deviceIpAddresses[@]} + 1 ))
 	
-	# Determine the most recent IP addrress used
-	local mostRecentIpAddressDottedDecimal="${deviceIpAddressesSorted[-1]}"
+	# Determine the most recent IP addrress used (might be server address)
+	local mostRecentIpAddressDottedDecimal
+	
+	if [[ ${#deviceIpAddressesSorted[@]} -eq 0 ]]; then
+		mostRecentIpAddressDottedDecimal="${networkValues["KEY_SERVER_IP_ADDRESS_ON_VPN"]}"
+	else
+		mostRecentIpAddressDottedDecimal="${deviceIpAddressesSorted[-1]}"
+	fi
 
 	initializeNetworkValues "${pInterfaceName}" "${networkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}" "${networkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}" "${mostRecentIpAddressDottedDecimal}" networkValues
 	
@@ -186,7 +195,7 @@ addNewDevice() {
 	# Check if IP address is allowed
 	if [[ "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET"]}" != "1" ]]
 	then
-		logErrorMessage	"${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET_MSG"]}"
+		logDeviceNotAddedSuccessfullyMessage "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET_MSG"]}"
 		return 1
 	fi
 	
@@ -207,11 +216,11 @@ addNewDevice() {
 	logDeviceAddedSuccessfullyMessage networkValues
 	
 }
-# end of ::addNewDevice
+# end of ::addDevice
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
-# ::addNewDeviceToSkoonieOnly
+# ::addDeviceToSkoonieOnly
 # 
 # Adds a new device to the skoonieini files but does not add the device to WireGuard. This is used
 # when a device was previously added to WireGuard, but not added to the wireguard skoonie wrapper.
@@ -225,7 +234,7 @@ addNewDevice() {
 # $5	New device Description.
 #
 
-addNewDeviceToSkoonieOnly() {
+addDeviceToSkoonieOnly() {
 
 	local pInterfaceName=$1
 	local pNewDevicePublicKey=$2
@@ -233,7 +242,7 @@ addNewDeviceToSkoonieOnly() {
 	local pNewDeviceName=$4
 	local pNewDeviceDescription=$5
 	
-	local interfaceSkoonieIniFilePath="${pInterfaceName}.skoonieini"
+	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
 	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${interfaceSkoonieIniFilePath}")
 	
 	local statusGood=0
@@ -265,7 +274,7 @@ addNewDeviceToSkoonieOnly() {
 	# Check if IP address is allowed
 	if [[ "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET"]}" != "1" ]]
 	then
-		logErrorMessage	"${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET_MSG"]}"
+		logDeviceNotAddedSuccessfullyMessage "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET_MSG"]}"
 		return 1
 	fi
 	
@@ -276,12 +285,172 @@ addNewDeviceToSkoonieOnly() {
     # Public key was provided by user
 	networkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]="${pNewDevicePublicKey}"
 	
-	addNewDeviceToSkoonieIniFile "$interfaceSkoonieIniFilePath" "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${networkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${networkValues["KEY_NEW_DEVICE_NAME"]}" "${networkValues["KEY_NEW_DEVICE_DESC"]}"
+	addDeviceToSkoonieIniFile "$interfaceSkoonieIniFilePath" "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${networkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${networkValues["KEY_NEW_DEVICE_NAME"]}" "${networkValues["KEY_NEW_DEVICE_DESC"]}"
 	
 	logDeviceAddedToSkoonieOnlySuccessfullyMessage networkValues
 
 }
-# end of ::addNewDeviceToSkoonieOnly
+# end of ::addDeviceToSkoonieOnly
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::addInterface
+# 
+# Adds a new interface to WireGuard and to the skoonieini files.
+#
+# $1	Name of interface to add.
+# $2 	Server endpoint (IP address or Domain Name with port).
+# $3	Listening port.
+# $4	Network address in dotted-decimal format.
+# $5	Subnet mask in CIDR notation.
+# $6	Server IP address on VPN.
+#
+
+addInterface() {
+
+	local pInterfaceName=$1
+	local pServerEndpoint=$2
+	local pListeningPort=$3
+	local pNetworkAddressDottedDecimal=$4
+	local pSubnetMaskAsCidrNotation=$5
+	local pServerIpAddress=$6
+	
+	local sanitizedInterfaceName="${pInterfaceName// /-}"
+	
+	local yellowFontColor="\033[33m"
+	local resetColors="\033[0m"
+	
+	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}/${sanitizedInterfaceName}.skoonieini"
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}/${interfaceSkoonieIniFilePath}"
+	
+	mkdir -p "${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}/"
+
+	# Generate the private key
+	local privateKey=$(wg genkey)
+
+	# Generate the public key from the private key
+	local publicKey=$(echo "${privateKey}" | wg pubkey)
+
+	# Save the private key to a file
+	echo "${privateKey}" > "${WG_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}-private.key"
+
+	# Save the public key to a file
+	echo "${publicKey}" > "${WG_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}-public.key"
+
+	# Removes any permissions on the file for users and groups other than the root 
+	# user to ensure that only it can access the private key:
+	sudo chmod go= ${WG_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}-private.key
+	
+	local interfaceDetails
+	interfaceDetails+="[Interface]"
+	interfaceDetails+="\n"
+	interfaceDetails+="PrivateKey = ${privateKey}"
+	interfaceDetails+="\n"
+	interfaceDetails+="Address = ${pServerIpAddress}/${pSubnetMaskAsCidrNotation}"
+	interfaceDetails+="\n"
+	interfaceDetails+="ListenPort = ${pListeningPort}"
+	interfaceDetails+="\n"
+	
+	# Interface file should have SaveConfig set to false when first turning on the
+	# interface. This is because the interface sometimes has to be turned on and off
+	# a few times until it detects the config file. SaveConfig has to be set to false
+	# because if the interface is turned on while SaveConfig is true but the Interface
+	# failed to load settings from the config file, the config file will be overwritten
+	# with the blank details read in by WireGuard.
+	local interfaceFileOutputWithSaveConfigFalse="${interfaceDetails}"
+	interfaceFileOutputWithSaveConfigFalse+="SaveConfig = false"
+	echo -e "${interfaceFileOutputWithSaveConfigFalse}" > "${WG_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}.conf"
+	
+	# Allow traffic to specified port:
+	sudo ufw allow ${pListeningPort}/udp
+	
+	# Enable wireguard interface to start on boot
+	sudo systemctl enable wg-quick@${sanitizedInterfaceName}.service
+	
+	local errorStatus=1
+	for (( i=0; i<=10; i++ )); do
+		
+		sudo wg-quick up ${pInterfaceName}
+		echo "wg-quick up attempt #${i}"
+	
+		if sudo wg show ${pInterfaceName} 2>/dev/null | grep -q 'public key'; then
+			errorStatus=0
+			break
+		else
+			sudo wg-quick down ${pInterfaceName}
+			sleep 1
+		fi
+		
+	done
+	
+	if [[ "${errorStatus}" -ne 0 ]]
+	then
+		local msg
+		msg+="Failed to start interface."
+		msg+="\n\r"
+		msg+="\n\r"
+		msg+="	Please see above for details."
+		logErrorMessage "${msg}"
+	fi
+	
+	# Resave interface file with SaveConfig set to true
+	
+	sudo wg-quick down ${pInterfaceName}
+	
+	local interfaceFileOutputWithSaveConfigFalse="${interfaceDetails}"
+	interfaceFileOutputWithSaveConfigFalse+="SaveConfig = true"
+	echo -e "${interfaceFileOutputWithSaveConfigFalse}" > "${WG_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}.conf"
+	
+	sudo wg-quick up ${pInterfaceName}
+	
+	# Output service status:
+	sudo systemctl status wg-quick@${sanitizedInterfaceName}.service
+	
+	# initialize network values to be saved to file
+	local -A networkValues
+	networkValues["KEY_SERVER_ENDPOINT"]="${pServerEndpoint}"
+	networkValues["KEY_SERVER_LISTENING_PORT"]="${pListeningPort}"
+	networkValues["KEY_SERVER_PUBLIC_KEY"]="${publicKey}"
+	networkValues["KEY_SERVER_IP_ADDRESS_ON_VPN"]="${pServerIpAddress}"
+	networkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]="${pNetworkAddressDottedDecimal}"
+	networkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]="${pSubnetMaskAsCidrNotation}"
+	
+	# Output network details to skoonieini file
+	local skoonieIniFileOutput
+	skoonieIniFileOutput+=$(generateNetworkDetailsForSkoonieIniFile networkValues)
+	echo -e "${skoonieIniFileOutput}" > "${interfaceSkoonieIniFilePath}"
+	
+	# Made it to here, which means we had success
+	local msg
+	msg+="	Interface '${sanitizedInterfaceName}' was added successfully."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	The interface configuration file for WireGuard was saved to:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="		${yellowFontColor}${WG_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}.conf${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	The public key for the server was saved to:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="		${yellowFontColor}${WG_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}-public.key${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	The private key for the server was saved to:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="		${yellowFontColor}${WG_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}-private.key${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	The interface configuration file for wg-skoonie was saved to:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="		${yellowFontColor}${interfaceSkoonieIniFileAbsolutePath}${resetColors}"
+	logSuccessMessage "${msg}"
+	
+}
+# end of ::addInterface
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
@@ -325,7 +494,7 @@ checkInterfaceValidity() {
 		errorMsg+="\n\r	File path  used for skoonieini configruation file:"
 		errorMsg+="\n\r"
 		errorMsg+="\n\r		${yellowFontColor}${interfaceSkoonieIniFileAbsolutePath}${resetColors}"
-		logErrorMessage "${errorMsg}"
+		logDeviceNotAddedSuccessfullyMessage "${errorMsg}"
 		statusGood=1
 	elif [[ $interfaceExistsInWireGuard -ne 0 ]]; then
 		logErrorMessage "Interface '${pInterfaceName}' cannot be found in WireGuard."
@@ -337,7 +506,7 @@ checkInterfaceValidity() {
 		errorMsg+="\n\r	File path expected for skoonieini configruation file:"
 		errorMsg+="\n\r"
 		errorMsg+="\n\r		${yellowFontColor}${interfaceSkoonieIniFileAbsolutePath}${resetColors}"
-		logErrorMessage "${errorMsg}"
+		logDeviceNotAddedSuccessfullyMessage "${errorMsg}"
 		statusGood=1
 	fi
 	
@@ -553,7 +722,7 @@ generateClientConfigFile() {
 	local folder=$9
 	local wireguardInterfaceName=${10}
 	
-	local folderPath="$folder/$wireguardInterfaceName/device$clientDeviceIndex"
+	local folderPath="$folder/device$clientDeviceIndex"
 	local filePath="$folderPath/$wireguardInterfaceName.conf"
 	
 	mkdir -p "$folderPath"
@@ -573,6 +742,74 @@ EOF
 
 }
 # end of ::generateClientConfigFile
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateDeviceDetails
+# 
+# Generates and echos device details for the device specified by index.
+#
+# Parameters:
+#
+# $1	Index of device to generate details for.
+#
+
+generateDeviceDetails() {
+
+	local pDeviceIndex=$1
+	
+	local msg=""
+	msg+="	Device details according to wg-skoonie:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Device IP Address	${deviceIpAddresses[$pDeviceIndex]}"
+	msg+="\n\r"
+	msg+="	Device Public Key	${devicePublicKeys[$pDeviceIndex]}"
+	msg+="\n\r"
+	msg+="	Device Name		${deviceNames[$pDeviceIndex]}"
+	msg+="\n\r"
+	msg+="	Device Description	${deviceDescriptions[$pDeviceIndex]}"
+	
+	echo "${msg}"
+
+}
+# end of ::generateDeviceDetails
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateNetworkDetailsForSkoonieIniFile
+# 
+# Generates and returns network details that can be written to the skoonie ini file.
+#
+# Parameters:
+#
+# $1	Reference to associative array key-value pair for network values.
+#
+
+generateNetworkDetailsForSkoonieIniFile() {
+
+	local -n pNetworkValues724=$1
+	
+	local output
+	
+	output+="[Network]"
+	output+="\n\r"
+	output+="Server Endpoint=${pNetworkValues724["KEY_SERVER_ENDPOINT"]}"
+	output+="\n\r"
+	output+="Server Listening Port=${pNetworkValues724["KEY_SERVER_LISTENING_PORT"]}"
+	output+="\n\r"
+	output+="Server Public Key=${pNetworkValues724["KEY_SERVER_PUBLIC_KEY"]}"
+	output+="\n\r"
+	output+="Server IP Address On VPN=${pNetworkValues724["KEY_SERVER_IP_ADDRESS_ON_VPN"]}"
+	output+="\n\r"
+	output+="Network Address=${pNetworkValues724["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}"
+	output+="\n\r"
+	output+="Subnet Mask CIDR Notation=${pNetworkValues724["KEY_SUBNET_MASK_CIDR_NOTATION"]}"
+	
+	echo "${output}"
+
+}
+# end of ::generateNetworkDetailsForSkoonieIniFile
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
@@ -614,7 +851,7 @@ initializeNetworkValues() {
 	pNetworkValues["KEY_INVERTED_SUBNET_MASK_INTEGER"]="$(( ~(${pNetworkValues["KEY_SUBNET_MASK_INTEGER"]}) & 0xFFFFFFFF ))"
 	pNetworkValues["KEY_INVERTED_SUBNET_MASK_BINARY_WITH_PADDING"]="$(convertIpAddressIntegerToPadded32BitBinaryString "${pNetworkValues["KEY_INVERTED_SUBNET_MASK_INTEGER"]}")"
 	pNetworkValues["KEY_INVERTED_SUBNET_MASK_DOTTED_DECIMAL"]="$(convertIpAddressIntegerToDottedDecimalString "${pNetworkValues["KEY_INVERTED_SUBNET_MASK_INTEGER"]}")"
-	
+
 	pNetworkValues["KEY_NETWORK_ADDRESS_INTEGER"]="$(convertIpAddressDottedDecimalToInteger "${pNetworkAddressAsDottedDecimalString}")"
 	pNetworkValues["KEY_NETWORK_ADDRESS_BINARY_WITH_PADDING"]="$(convertIpAddressIntegerToPadded32BitBinaryString "${pNetworkValues["KEY_NETWORK_ADDRESS_INTEGER"]}")"
 	pNetworkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]="$(convertIpAddressIntegerToDottedDecimalString "${pNetworkValues["KEY_NETWORK_ADDRESS_INTEGER"]}")"
@@ -627,12 +864,46 @@ initializeNetworkValues() {
 	pNetworkValues["KEY_BROADCAST_ADDRESS_BINARY_WITH_PADDING"]="$(convertIpAddressIntegerToPadded32BitBinaryString "${pNetworkValues["KEY_BROADCAST_ADDRESS_INTEGER"]}")"
 	pNetworkValues["KEY_BROADCAST_ADDRESS_DOTTED_DECIMAL"]="$(convertIpAddressIntegerToDottedDecimalString "${pNetworkValues["KEY_BROADCAST_ADDRESS_INTEGER"]}")"
 	
+	pNetworkValues["KEY_SERVER_IP_ADDRESS_ON_VPN_INTEGER"]="$(convertIpAddressDottedDecimalToInteger "${pNetworkValues["KEY_SERVER_IP_ADDRESS_ON_VPN"]}")"
+	pNetworkValues["KEY_SERVER_IP_ADDRESS_ON_VPN_BINARY_WITH_PADDING"]="$(convertIpAddressIntegerToPadded32BitBinaryString "${pNetworkValues["KEY_SERVER_IP_ADDRESS_ON_VPN_INTEGER"]}")"
+	pNetworkValues["KEY_SERVER_IP_ADDRESS_ON_VPN_DOTTED_DECIMAL"]="$(convertIpAddressIntegerToDottedDecimalString "${pNetworkValues["KEY_SERVER_IP_ADDRESS_ON_VPN_INTEGER"]}")"
+	
 	pNetworkValues["KEY_MOST_RECENT_IP_ADDRESS_INTEGER"]="$(convertIpAddressDottedDecimalToInteger "${pMostRecentIpAddressAsDottedDecimalString}")"
 	pNetworkValues["KEY_MOST_RECENT_IP_ADDRESS_BINARY_WITH_PADDING"]="$(convertIpAddressIntegerToPadded32BitBinaryString "${pNetworkValues["KEY_MOST_RECENT_IP_ADDRESS_INTEGER"]}")"
 	pNetworkValues["KEY_MOST_RECENT_IP_ADDRESS_DOTTED_DECIMAL"]="$(convertIpAddressIntegerToDottedDecimalString "${pNetworkValues["KEY_MOST_RECENT_IP_ADDRESS_INTEGER"]}")"
 	
 }
 # end of ::initializeNetworkValues
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::isIndexInArray
+# 
+# Checks if pIndex is in pArray.
+#
+# Parameters:
+#
+# $1	Index of device to remove.
+# $2	Reference to array if index exists in.
+#
+# Return:
+#
+# Returns 0 if pIndex is in pArray; 1 if it is not.
+#
+
+isIndexInArray() {
+	
+	local pIndex=$1
+	local -n pArray=$2
+
+	if [ ${pIndex} -ge 0 ] && [ ${pIndex} -lt ${#pArray[@]} ]; then
+        return 0  # Index exists
+    else
+        return 1  # Index does not exist
+    fi
+	
+}
+# end of ::isIndexInArray
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
@@ -655,9 +926,9 @@ logErrorMessage() {
 	output+="	!! ERROR !! start"
 	output+="${resetColors}"
 	output+="\n\r"
-	output+="\n\r	Device was not added. Please see below for more details."
 	output+="\n\r"
 	output+="\n\r	${errorMessage}"
+	output+="\n\r"
 	output+="\n\r"
 	output+="${redBackground}"
 	output+="\n\r"
@@ -685,49 +956,36 @@ logDeviceAddedSuccessfullyMessage() {
 
 	local -n pNetworkValues=$1
 	
-	local greenBackground="\033[30;42m"
 	local yellowFontColor="\033[33m"
 	local resetColors="\033[0m"
 
 	local msg=""
 	
-	msg+="${greenBackground}"
-	msg+="\n\r"
-	msg+="	!! SUCCESS !! start"
-	msg+="${resetColors}"
-	msg+="\n\r"
-	msg+="\n\r	Device was successfully added to WireGuard interface '${pNetworkValues["KEY_INTERFACE_NAME"]}'."
+	msg+="	Device was successfully added to WireGuard interface '${pNetworkValues["KEY_INTERFACE_NAME"]}'."
 	msg+="\n\r"
 	msg+="\n\r"
 	msg+="	Device IP Address	${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}"
-	msg+="\r\n"
+	msg+="\n\r"
 	msg+="	Device Public Key	${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}"
-	msg+="\r\n"
+	msg+="\n\r"
 	msg+="	Device Name		${pNetworkValues["KEY_NEW_DEVICE_NAME"]}"
-	msg+="\r\n"
+	msg+="\n\r"
 	msg+="	Device Description	${pNetworkValues["KEY_NEW_DEVICE_DESC"]}"
-	msg+="\r\n"
-	msg+="\r\n"
+	msg+="\n\r"
+	msg+="\n\r"
 	msg+="	The tunnel configuration file for the newly added device has been saved to the following location:"
-	msg+="\r\n"
-	msg+="\r\n"
+	msg+="\n\r"
+	msg+="\n\r"
 	msg+="		${yellowFontColor}${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_ABS_PATH"]}${resetColors}"
-	msg+="\r\n"
-	msg+="\r\n"
+	msg+="\n\r"
+	msg+="\n\r"
 	msg+="	The configuration file can be imported into a client's WireGuard service to add a tunnel to the interface."
-	msg+="\r\n"
-	msg+="\r\n	Since it contains the client's private key, it is not recommended to keep the file on this machine"
-	msg+="\r\n	after it has been added to the client; storing the private key for a WireGuard peer in multiple"
-	msg+="\r\n	locations can be a security risk."
 	msg+="\n\r"
-	msg+="${greenBackground}"
-	msg+="\n\r"
-	msg+="	!! SUCCESS !! end"
-	msg+="${resetColors}"
-	msg+="\n\r"
-	msg+="\n\r"
+	msg+="\n\r	Since it contains the client's private key, it is not recommended to keep the file on this machine"
+	msg+="\n\r	after it has been added to the client; storing the private key for a WireGuard peer in multiple"
+	msg+="\n\r	locations can be a security risk."
 	
-	printf "${msg}"
+	logSuccessMessage "${msg}"
 	
 }
 # end of ::logDeviceAddedSuccessfullyMessage
@@ -752,33 +1010,127 @@ logDeviceAddedToSkoonieOnlySuccessfullyMessage() {
 
 	local msg=""
 	
+	msg+="	Device was successfully added to the wg-skoonie wrapper for interface '${pNetworkValues["KEY_INTERFACE_NAME"]}'."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Device IP Address	${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}"
+	msg+="\n\r"
+	msg+="	Device Public Key	${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}"
+	msg+="\n\r"
+	msg+="	Device Name		${pNetworkValues["KEY_NEW_DEVICE_NAME"]}"
+	msg+="\n\r"
+	msg+="	Device Description	${pNetworkValues["KEY_NEW_DEVICE_DESC"]}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Please note that the device was NOT added to WireGuard, only to the skoonieini configuration files."
+	msg+="\n\r"
+	msg+="	This command is used when a device was already added to WireGuard but want it to be tracked using"
+	msg+="\n\r"
+	msg+="	the wg-skoonie wrapper."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	A tunnel configuration file for the newly added device was not generated because it is assumed the"
+	msg+="\n\r"
+	msg+="	device was previously configured."
+	
+	logSuccessMessage "${msg}"
+	
+}
+# end of ::logDeviceAddedToSkoonieOnlySuccessfullyMessage
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::logDeviceNotAddedSuccessfullyMessage
+# 
+# Logs device not added successfully message using details in pMsg.
+#
+# Parameters:
+#
+# $1	Message details.
+#
+
+logDeviceNotAddedSuccessfullyMessage() {
+
+	local pMsg=$1
+	
+	local msg="Device was not added. Please see below for more details."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	${pMsg}"
+	
+	logErrorMessage "${msg}"
+	
+}
+# end of ::logDeviceNotAddedSuccessfullyMessage
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::logPartialSuccessMessage
+# 
+# Logs the passed in message as a partial success message encapsulated by yellow lines.
+#
+# Parameters:
+#
+# $1	Message.
+#
+
+logPartialSuccessMessage() {
+
+	local pMsg=$1
+
+	local yellowBackground="\033[30;43m"
+	local resetColors="\033[0m"
+
+	local output=""
+	
+	output+="${yellowBackground}"
+	output+="\n\r"
+	output+="	!! PARTIAL SUCCESS !! start"
+	output+="${resetColors}"
+	output+="\n\r"
+	output+="\n\r	${msg}"
+	output+="\n\r"
+	output+="${yellowBackground}"
+	output+="\n\r"
+	output+="	!! PARTIAL SUCCESS !! end"
+	output+="${resetColors}"
+	output+="\n\r"
+	output+="\n\r"
+	
+	printf "${output}"
+
+}
+# end of ::logPartialSuccessMessage
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::logSuccessMessage
+# 
+# Logs the passed in message as a success message encapsulated by yellow lines.
+#
+# Parameters:
+#
+# $1	Message.
+#
+
+logSuccessMessage() {
+
+	local pMsg=$1
+	
+	local greenBackground="\033[30;42m"
+	local resetColors="\033[0m"
+
+	local msg=""
+	
 	msg+="${greenBackground}"
 	msg+="\n\r"
 	msg+="	!! SUCCESS !! start"
 	msg+="${resetColors}"
 	msg+="\n\r"
-	msg+="\n\r	Device was successfully added to the wg-skoonie wrapper for interface '${pNetworkValues["KEY_INTERFACE_NAME"]}'."
 	msg+="\n\r"
 	msg+="\n\r"
-	msg+="	Device IP Address	${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}"
-	msg+="\r\n"
-	msg+="	Device Public Key	${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}"
-	msg+="\r\n"
-	msg+="	Device Name		${pNetworkValues["KEY_NEW_DEVICE_NAME"]}"
-	msg+="\r\n"
-	msg+="	Device Description	${pNetworkValues["KEY_NEW_DEVICE_DESC"]}"
-	msg+="\r\n"
-	msg+="\r\n"
-	msg+="	Please note that the device was NOT added to WireGuard, only to the skoonieini configuration files."
-	msg+="\r\n"
-	msg+="	This command is used when a device was already added to WireGuard but want it to be tracked using"
-	msg+="\r\n"
-	msg+="	the wg-skoonie wrapper."
-	msg+="\r\n"
-	msg+="\r\n"
-	msg+="	A tunnel configuration file for the newly added device was not generated because it is assumed the"
-	msg+="\r\n"
-	msg+="	device was previously configured."
+	msg+="${pMsg}"
+	msg+="\n\r"
 	msg+="\n\r"
 	msg+="${greenBackground}"
 	msg+="\n\r"
@@ -790,7 +1142,228 @@ logDeviceAddedToSkoonieOnlySuccessfullyMessage() {
 	printf "${msg}"
 	
 }
-# end of ::logDeviceAddedToSkoonieOnlySuccessfullyMessage
+# end of ::logSuccessMessage
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::outputHelp
+# 
+# Outputs help instructions.
+#
+
+outputHelp() {
+	
+	local yellowFontColor="\033[33m"
+	local resetColors="\033[0m"
+		
+	local msg=""
+	
+	# addInterface Command
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="${yellowFontColor}"
+	msg+="addInterface [Interface Name] [Server Endpoint] [Listening Port] [Network Address] [Subnet Mask CIDR Notation] [Server IP Address on VPN]"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Adds a new WireGuard interface."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	This does NOT check to see if a previous interface with the same name already exists. It is the "
+	msg+="\n\r"
+	msg+="	responsibility of the user to verify this to ensure there are no conflicts."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for"
+	msg+="\n\r"
+	msg+="	any interface. Support for IPv6 will be added at a later date. WireGuard supports IPv6, but"
+	msg+="\n\r"
+	msg+="	wg-skoonie does not."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Example 1:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	sudo ./wg-skoonie.sh addInterface \"wg0\" \"90.47.205.206:1111\" \"10.27.0.0\" \"24\" \"1111\" \"10.27.0.1\""
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Example 2:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	sudo ./wg-skoonie.sh addInterface \"wg0\" \"90.47.205.206:1211\" \"10.27.0.0\" \"24\" \"1211\" \"10.27.0.1\""
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Example 2:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	sudo ./wg-skoonie.sh addInterface \"wg0\" \"wg.website.com:1211\" \"10.27.255.0\" \"24\" \"1211\" \"10.27.255.1\""
+	
+	# removeInterface Command
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="${yellowFontColor}"
+	msg+="removeInterface [Interface Name]"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Removes a WireGuard interface by name."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	This will remove all associated files and data from both WireGuard and wg-skoonie."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	This will also automatically delete the ufw rule added to open the port."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Use with caution. This command cannot be undone."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Example Usage:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	sudo ./wg-skoonie.sh removeInterface \"wg0\""
+	
+	# addDevice Command
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="${yellowFontColor}"
+	msg+="addDevice [Interface Name] [New Device Name] [New Device Description]"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Adds a new device to the specified interface. The IP address is auomatically calculated"
+	msg+="\n\r"
+	msg+="	by incrementing the highest IP address found in the wg-skoonie configuration files for the"
+	msg+="\n\r"
+	msg+="	by 1."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	If the resulting IP address is not within the subnet based on the network details found in"
+	msg+="\n\r"
+	msg+="	the wg-skoonie configuration files, errors are thrown."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for"
+	msg+="\n\r"
+	msg+="	any interface. Support for IPv6 will be added at a later date. WireGuard supports IPv6, but"
+	msg+="\n\r"
+	msg+="	wg-skoonie does not."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Example usage:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	sudo ./wg-skoonie.sh addDevice \"wg0\" \"Kelly's Computer\" \"Kelly's main computer that he uses at home.\""
+	
+	# addDeviceSkoonieOnly Command
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="${yellowFontColor}"
+	msg+="addDeviceSkoonieOnly [Interface Name] [New Device Public Key] [New Device IP Address] [New Device Name] [New Device Description]"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Adds a new device to the wg-skoonie configuration files for the specified interface, but"
+	msg+="\n\r"
+	msg+="	does NOT add the device to WireGuard."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	This command is used when a device already exists in WireGuard and it now needs to be"
+	msg+="\n\r"
+	msg+="	logged by wg-skoonie."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for"
+	msg+="\n\r"
+	msg+="	any interface. Support for IPv6 will be added at a later date. WireGuard supports IPv6, but"
+	msg+="\n\r"
+	msg+="	wg-skoonie does not."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Example usage:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	sudo ./wg-skoonie.sh addDeviceSkoonieOnly \"wg0\" \"Y+bTUNHoyoyrlu9kTT6jEZNyW5l6cS7MMZ/CQs1KqDc=\" \"10.8.0.1\" \"Kelly's Computer\" \"Kelly's main computer that he uses at home.\""
+	
+	# removeDevice Command
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="${yellowFontColor}"
+	msg+="removeDevice [Interface Name] [Device to Remove Index]"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Removes the device specified by index from the specified interface."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	The device is removed from both wg-skoonie and from WireGuard."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	To determine a device index, use command 'showInterfaceSkoonie [Interface Name]'."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Example usage:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	sudo ./wg-skoonie.sh removeDevice \"wg0\" \"37\""
+	
+	# showAllInterfacesSkoonie Command
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="${yellowFontColor}"
+	msg+="showAllInterfacesSkoonie [Interface Name]"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Lists all of the interfaces and the network details saved by skoonie."
+	msg+="\n\r"
+	msg+="	Does not output the devices for each interface."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Example usage:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	sudo ./wg-skoonie.sh showAllInterfacesSkoonie"
+	
+	# showInterfaceSkoonie Command
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="${yellowFontColor}"
+	msg+="showInterfaceSkoonie [Interface Name]"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Outputs the details saved by wg-skoonie for the specified interface."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Example usage:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	sudo ./wg-skoonie.sh showInterfaceSkoonie \"wg0\""
+	
+	# showInterfaceWireGuard Command
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="${yellowFontColor}"
+	msg+="showInterfaceWireGuard [Interface Name]"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Outputs the details saved by WireGuard for the specified interface."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Example usage:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	sudo ./wg-skoonie.sh showInterfaceWireGuard \"wg0\""
+	
+	msg+="\n\r"
+	msg+="\n\r"
+	
+	printf "${msg}"
+	
+}
+# end of ::outputHelp
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
@@ -915,6 +1488,9 @@ readInterfaceIniFile() {
 	# Read in all key-value pairs in the file
 	if [ -f "${pFilePath}" ]; then
 		 while IFS='' read -r line; do
+		 
+			# Remove carriage returns
+			line=$(echo "$line" | tr -d '\r')
 		
 			# Remove leading and trailing whitespaces
             line=$(echo "$line" | xargs)
@@ -940,6 +1516,14 @@ readInterfaceIniFile() {
 				
 				"Server Endpoint")
 					pNetworkValues["KEY_SERVER_ENDPOINT"]="${value}"
+					;;
+					
+				"Server Listening Port")
+					pNetworkValues["KEY_SERVER_LISTENING_PORT"]="${value}"
+					;;
+					
+				"Server IP Address On VPN")
+					pNetworkValues["KEY_SERVER_IP_ADDRESS_ON_VPN"]="${value}"
 					;;
 			
 				"Network Address")
@@ -976,6 +1560,310 @@ readInterfaceIniFile() {
 
 }
 # end of ::readInterfaceIniFile
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::removeDeviceByIndex
+# 
+# Outputs details saved in WireGuard for the passed in interface.
+#
+# Parameters:
+#
+# $1	Interface name.
+# $2	Index of device to remove.
+#
+
+removeDeviceByIndex() {
+
+	local pInterfaceName=$1
+	local pDeviceToRemoveIndex=$2
+
+	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
+	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${interfaceSkoonieIniFilePath}")
+	
+	local statusGood=0
+	
+	checkInterfaceValidity "${pInterfaceName}" "${interfaceSkoonieIniFilePath}"
+	statusGood=$?
+	
+	# Return with error if status not good
+	if [[ "${statusGood}" -ne 0 ]] ; then
+		return 1
+	fi
+	
+	local -A networkValues
+	
+	# Read existing devices on this interface from file
+	readInterfaceIniFile "$interfaceSkoonieIniFilePath" networkValues
+	
+	isIndexInArray ${pDeviceToRemoveIndex} deviceIpAddresses
+	statusGood=$?
+	
+	# Return with error if status not good
+	local yellowFontColor="\033[33m"
+	local resetColors="\033[0m"
+	
+	if [[ "${statusGood}" -ne 0 ]] ; then
+		local msg="Device index '${pDeviceToRemoveIndex}' was not found in interface '${pInterfaceName}' so device was NOT removed."
+		msg+="\n\r"
+		msg+="\n\r"
+		msg+="	Details for interface '${pInterfaceName}' for wg-skoonie were loaded from:"
+		msg+="\n\r"
+		msg+="\n\r"
+		msg+="		${yellowFontColor}${interfaceSkoonieIniFileAbsolutePath}${resetColors}"
+		logErrorMessage	"${msg}"
+		return 1
+	fi
+	
+	local deviceDetailsMsg=$(generateDeviceDetails "${pDeviceToRemoveIndex}")
+	
+	# Erase device by writing all other devices to file, excluding the device marked for removal
+	rewriteInterfaceFileExcludingDeviceAtIndex "${pInterfaceName}" "${pDeviceToRemoveIndex}" networkValues "${interfaceSkoonieIniFilePath}"
+	
+	# Remove device from WireGuard
+	removeDeviceFromWireGuard "${pInterfaceName}" "${pDeviceToRemoveIndex}" "${deviceDetailsMsg}"
+	statusGood=$?
+	
+	# Bail if status not good
+	if [[ "${statusGood}" -ne 0 ]] ; then
+		return 1
+	fi
+	
+	# Removal was a success
+	local msg="	Device was successfully removed from wg-skoonie and successfully removed from WireGuard."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="${deviceDetailsMsg}"
+	
+	logSuccessMessage "${msg}"
+
+}
+# end of ::removeDeviceByIndex
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::removeDeviceFromWireGuard
+# 
+# Removes the device referenced by the specified index from WireGuard.
+#
+# Parameters:
+#
+# $1	Interface name.
+# $2	Index of device to remove.
+# $3	Device details in a format that can be outputted to console.
+#
+
+removeDeviceFromWireGuard() {
+
+	local pInterfaceName=$1
+	local pDeviceToRemoveIndex=$2
+	local pDeviceDetailsOutputMsg=$3
+
+	local removeDeviceFromWireGuardCmd="wg set ${pInterfaceName} peer ${devicePublicKeys[$pDeviceToRemoveIndex]} remove"
+	
+	local removeDeviceFromWireGuardOutput
+	removeDeviceFromWireGuardOutput=$(${removeDeviceFromWireGuardCmd} 2>&1)
+	local removedFromWgStatus=$?
+	
+	# Check if device removal from WireGuard was successful
+	if [[ "${removedFromWgStatus}" -ne 0 ]] ; then
+	
+		local yellowBackground="\033[30;43m"
+		local resetColors="\033[0m"
+		
+		local msg="Device was successfully removed from wg-skoonie, but was not successfully removed from WireGuard."
+		msg+="\n\r"
+		msg+="\n\r"
+		msg+="${pDeviceDetailsOutputMsg}"
+		msg+="\n\r"
+		msg+="\n\r"
+		msg+="	Command used to remove device from WireGuard:"
+		msg+="\n\r"
+		msg+="\n\r"
+		msg+="		${removeDeviceFromWireGuardCmd}"
+		msg+="\n\r"
+		msg+="\n\r"
+		msg+="	Output message from WireGuard after command: "
+		msg+="\n\r"
+		msg+="\n\r"
+		msg+="		${removeDeviceFromWireGuardOutput}"
+		
+		logPartialSuccessMessage "${msg}"
+		
+		return 1
+		
+	fi
+	
+	return 0
+
+}
+# end of ::removeDeviceFromWireGuard
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::removeInterface
+# 
+# Remvoes the specified interface from WireGuard and from wg-skoonie.
+#
+# $1	Name of interface to add.
+#
+
+removeInterface() {
+
+	local pInterfaceName=$1
+	
+	local sanitizedInterfaceName="${pInterfaceName// /-}"
+	
+	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}/${sanitizedInterfaceName}.skoonieini"
+	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${interfaceSkoonieIniFilePath}")
+	
+	local -A networkValues
+	readInterfaceIniFile "$interfaceSkoonieIniFilePath" networkValues
+	
+	# Bring service down. Deletes ip link device
+	sudo wg-quick down ${sanitizedInterfaceName}
+	
+	# Disable starting service on boot up
+	sudo systemctl disable wg-quick@${sanitizedInterfaceName}.service
+	
+	# Remove firewall rule allowing traffic on the interface port
+	sudo ufw delete allow ${networkValues["KEY_SERVER_LISTENING_PORT"]}/udp
+
+	local interfaceKeysFolderPath="/etc/wireguard"
+	
+	local -a filesToDelete
+	
+	# Delete WireGuard interface file
+	filesToDelete+=("${interfaceKeysFolderPath}/${pInterfaceName}.conf")
+	
+	# Delete private key file
+	filesToDelete+=("${interfaceKeysFolderPath}/${pInterfaceName}-private.key")
+	
+	# Delete public key file
+	filesToDelete+=("${interfaceKeysFolderPath}/${pInterfaceName}-public.key")
+
+	# Delete wg-skoonie interface folder
+	filesToDelete+=("${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}")
+	
+	local errorStatus=0
+	
+	for ((i = 0; i < ${#filesToDelete[@]}; i++)); do
+	
+		local fileToDeleteAbsPath="${PWD}/${filesToDelete[$i]}"
+	
+		# Delete file/directory if it exists
+		if [[ -f "${filesToDelete[$i]}" ]] || [[ -d "${filesToDelete[$i]}" ]]; 
+		then
+			
+			sudo rm -r "${filesToDelete[$i]}"
+			
+			local loopErrorStatus=$?
+			
+			if [[ "${loopErrorStatus}" -ne 0 ]] ; 
+			then
+				echo "Error removing file/directory:"
+				echo "	${fileToDeleteAbsPath}"
+			else
+				echo "File/Directory removed:"
+				echo "	${fileToDeleteAbsPath}"
+			fi
+			
+			# Store error status, making sure not to overwrite any previous error statuses
+			# (assumes all error status are 1s)
+			errorStatus=$(( ${errorStatus} | ${loopErrorStatus} ))
+			
+		else
+			echo "File/Directory was already removed:"
+			echo "	${fileToDeleteAbsPath}"
+		fi
+	
+	done
+	
+	# Return with error if status not good
+	if [[ "${statusGood}" -ne 0 ]] ; then
+		local msg
+		msg+="	Removing interface '${"sanitizedInterfaceName"} was NOT successful."
+		msg+="\n\r"
+		msg+="\n\r"
+		msg+="	Please see above for details."
+		logErrorMessage "${msg}"
+		return 1
+	fi
+	
+	local msg
+	msg+="	Removing interface '${sanitizedInterfaceName}' was successful."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Note that this command did not check to see if the interface previously"
+	msg+="\n\r"
+	msg+="	existed. If it did exist, associated files were removed and the necessary"
+	msg+="\n\r"
+	msg+="	commands to remove the interface were executed. If it did not exist, the"
+	msg+="\n\r"
+	msg+="	program still attempted to remove all files and still executed the same"
+	msg+="\n\r"
+	msg+="	commands. This is done to ensure that an interface that was not properly"
+	msg+="\n\r"
+	msg+="	set up can still be removed."
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	Please see above for details."
+	logSuccessMessage "${msg}"
+	return 1
+	
+}
+# end of ::removeInterface
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::rewriteInterfaceFileExcludingDeviceAtIndex
+# 
+# Rewrites the interface file excluding the specified device at index.
+#
+# Parameters:
+#
+# $1	Interface name.
+# $2	Index of device to exclude from file rewrite.
+# $3	Reference to associative array key-value pair for network values.
+# $4 	File path to interface skoonieini file.
+#
+
+rewriteInterfaceFileExcludingDeviceAtIndex() {
+
+	local pInterfaceName=$1
+	local pDeviceToExcludeIndex=$2
+	local -n pNetworkValues=$3
+	local pInterfaceSkoonieIniFilePath=$4
+	
+	# Erase device by writing all other devices to file, excluding the device marked for removal
+	
+	local output
+	
+	output+="\n\r"
+	
+	output+=$(generateNetworkDetailsForSkoonieIniFile pNetworkValues)
+	
+	
+	for ((i = 0; i < ${#deviceIpAddresses[@]}; i++)); do
+	
+		if [[ "${i}" == "${pDeviceToExcludeIndex}" ]] ; then
+			continue;
+		fi
+		
+		output+="\n\r"
+		output+="\n\r"
+		output+="[Device]"
+		output+="IP Address=${deviceIpAddresses[$i]}"
+		output+="Public Key=${devicePublicKeys[$i]}"
+		output+="Name=${deviceNames[$i]}"
+		output+="Description=${deviceDescriptions[$i]}" >> "${pInterfaceSkoonieIniFilePath}"
+	
+	done
+	
+	echo -e "${output}" > "${pInterfaceSkoonieIniFilePath}"
+
+}
+# end of ::rewriteInterfaceFileExcludingDeviceAtIndex
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
@@ -1071,6 +1959,217 @@ setNewDeviceValues() {
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
+# ::showAllInterfacesSkoonie
+# 
+# Outputs the network details saved in the skoonie ini files for all interfaces.
+#
+# Does not output the devices on each interface.
+#
+
+showAllInterfacesSkoonie() {
+	
+	local statusGood=0
+	
+	# Get list of interfaces by getting list of folders
+	# List directories and store them in an array, stripping out directory names from full file paths
+	local interfaceNames
+	for dir in "${WG_SKOONIE_INTERFACES_FOLDER_PATH}"/*/; do
+		local extractedName=$(basename "${dir}")
+		interfaceNames+=("${extractedName}")
+	done
+	
+	local yellowFontColor="\033[33m"
+	local resetColors="\033[0m"
+	
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="Interfaces were loaded from: "
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	${yellowFontColor}${PWD}${WG_SKOONIE_INTERFACES_FOLDER_PATH}${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	
+	for ((i = 0; i < ${#interfaceNames[@]}; i++)); do
+		
+		local interfaceFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${interfaceNames[$i]}/${interfaceNames[$i]}.skoonieini"
+		
+		local -A networkValues
+		
+		readInterfaceIniFile "$interfaceFilePath" networkValues
+		
+		msg+="\n\r"
+		msg+="${yellowFontColor}"
+		msg+="[${i}]"
+		msg+="	${interfaceNames[$i]}			Interface Name"
+		msg+="${resetColors}"
+		msg+="\n\r"
+		msg+="	${networkValues["KEY_SERVER_ENDPOINT"]}	Server Endpoint"
+		msg+="\n\r"
+		msg+="	${networkValues["KEY_SERVER_LISTENING_PORT"]}			Server Listening Port"
+		msg+="\n\r"
+		msg+="	${networkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}		Network Address"
+		msg+="\n\r"
+		msg+="	${networkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}			Network Address Subnet Mask in CIDR Notation"
+		msg+="\n\r"
+		msg+="	${networkValues["KEY_SERVER_IP_ADDRESS_ON_VPN"]}		Server IP Address on VPN"
+		msg+="\n\r"
+		
+	done
+	
+	msg+="\n\r"
+	
+	printf "${msg}"
+	
+}
+# end of ::showAllInterfacesSkoonie
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::showInterfaceDetailsFromSkoonieIniFiles
+# 
+# Outputs details saved in the skoonie ini files for the passed in interface.
+#
+# Parameters:
+#
+# $1	Interface name.
+#
+
+showInterfaceDetailsFromSkoonieIniFiles() {
+
+	pInterfaceName=$1
+
+	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
+	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${interfaceSkoonieIniFilePath}")
+	
+	local statusGood=0
+	
+	checkInterfaceValidity "${pInterfaceName}" "${interfaceSkoonieIniFilePath}"
+	statusGood=$?
+	
+	# Return with error if status not good
+	if [[ "${statusGood}" -ne 0 ]] ; then
+		return 1
+	fi
+	
+	local -A networkValues
+	
+	# Read existing devices on this interface from file
+	readInterfaceIniFile "$interfaceSkoonieIniFilePath" networkValues
+	
+	local yellowFontColor="\033[33m"
+	local resetColors="\033[0m"
+	
+	local msg=""
+	
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="Details for interface '${pInterfaceName}' for wg-skoonie were loaded from:"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="	${yellowFontColor}${interfaceSkoonieIniFileAbsolutePath}${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="Server Endpoint"
+	msg+="\n\r"
+	msg+="${yellowFontColor}"
+	msg+="	${networkValues["KEY_SERVER_ENDPOINT"]}"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="Server Listening Port"
+	msg+="\n\r"
+	msg+="${yellowFontColor}"
+	msg+="	${networkValues["KEY_SERVER_LISTENING_PORT"]}"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="Server Public Key"
+	msg+="\n\r"
+	msg+="${yellowFontColor}"
+	msg+="	${networkValues["KEY_SERVER_PUBLIC_KEY"]}"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="Server IP Address On VPN"
+	msg+="\n\r"
+	msg+="${yellowFontColor}"
+	msg+="	${networkValues["KEY_SERVER_IP_ADDRESS_ON_VPN"]}"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="Network Address"
+	msg+="\n\r"
+	msg+="${yellowFontColor}"
+	msg+="	${networkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	msg+="\n\r"
+	msg+="Subnet Mask CIDR Notation"
+	msg+="\n\r"
+	msg+="${yellowFontColor}"
+	msg+="	${networkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}"
+	msg+="${resetColors}"
+	msg+="\n\r"
+	
+	for ((i = 0; i < ${#deviceIpAddresses[@]}; i++)); do
+		msg+="\n\r"
+		msg+="${yellowFontColor}"
+		msg+="[${i}]"
+		msg+="	${deviceIpAddresses[$i]}"
+		msg+="${resetColors}"
+		msg+="\n\r"
+		msg+="	${devicePublicKeys[$i]}"
+		msg+="\n\r"
+		msg+="	${deviceNames[$i]}"
+		msg+="\n\r"
+		msg+="	${deviceDescriptions[$i]}"
+		msg+="\n\r"
+	done
+	
+	msg+="\n\r"
+	
+	printf "${msg}"
+	
+}
+# end of ::showInterfaceDetailsFromSkoonieIniFiles
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::showInterfaceDetailsFromWireGuard
+# 
+# Outputs details saved in WireGuard for the passed in interface.
+#
+# Parameters:
+#
+# $1	Interface name.
+#
+
+showInterfaceDetailsFromWireGuard() {
+
+	pInterfaceName=$1
+
+	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
+	local interfaceSkoonieIniFileAbsolutePath=$(realpath "${interfaceSkoonieIniFilePath}")
+	
+	local statusGood=0
+	
+	checkInterfaceValidity "${pInterfaceName}" "${interfaceSkoonieIniFilePath}"
+	statusGood=$?
+	
+	# Return with error if status not good
+	if [[ "${statusGood}" -ne 0 ]] ; then
+		return 1
+	fi
+	
+	# This command will output details for the interface to console
+	wg show "${pInterfaceName}"
+	
+}
+# end of ::showInterfaceDetailsFromWireGuard
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
 # ::handleUserCommand
 # 
 # Handles user commands.
@@ -1081,9 +2180,16 @@ setNewDeviceValues() {
 #
 
 case "$1" in
+
+	"--help")
+		outputHelp
+		;;
 			
 	"addDevice")
-		addNewDevice "${2}" "${3}" "${4}"
+		# $2	Interface name to add device to.
+		# $3	Name of new device.
+		# $4	Description of new device.
+		addDevice "${2}" "${3}" "${4}"
 		;;
 
 	"addDeviceSkoonieOnly")
@@ -1092,7 +2198,42 @@ case "$1" in
 		# $4	Device IP address.
 		# $5	Device name.
 		# $6	Device Description.
-		addNewDeviceToSkoonieOnly "${2}" "${3}" "${4}" "${5}" "${6}"
+		addDeviceToSkoonieOnly "${2}" "${3}" "${4}" "${5}" "${6}"
+		;;
+		
+	"removeDevice")
+		# $2	Interface name.
+		# $3	Device index.
+		removeDeviceByIndex "${2}" "${3}"
+		;;
+		
+	"addInterface")
+		# $2	Name of interface to add.
+		# $3 	Server endpoint (IP address or Domain Name with port).
+		# $4	Listening port.
+		# $5	Network address in dotted-decimal format.
+		# $6	Subnet mask in CIDR notation.
+		# $7	Server IP address on VPN.
+		addInterface "${2}" "${3}" "${4}" "${5}" "${6}" "${7}"
+		;;
+		
+	"removeInterface")
+		# $2	Interface name.
+		removeInterface "${2}"
+		;;
+		
+	"showAllInterfacesSkoonie")
+		showAllInterfacesSkoonie
+		;;
+	
+	"showInterfaceSkoonie")
+		# $2	Interface name.
+		showInterfaceDetailsFromSkoonieIniFiles "${2}"
+		;;
+		
+	"showInterfaceWireGuard")
+		# $2	Interface name.
+		showInterfaceDetailsFromWireGuard "${2}"
 		;;
 
 esac
