@@ -9,6 +9,9 @@
 ##--------------------------------------------------------------------------------------------------
 # ::Global Variables
 
+readonly PROGRAM_NAME="WireGuard Skoonie Wrapper"
+readonly VERSION_NUMBER="1.0.0"
+
 readonly WG_SKOONIE_INTERFACES_FOLDER_PATH="interfaces"
 readonly WG_INTERFACES_FOLDER_PATH="/etc/wireguard"
 
@@ -1363,6 +1366,37 @@ outputHelp() {
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
+# ::outputVersion
+# 
+# Outputs program name and version number.
+#
+
+outputVersion() {
+	
+	local yellowFontColor="\033[33m"
+	local resetColors="\033[0m"
+		
+	local msg=""
+	
+	# addInterface Command
+	msg+="\n"
+	
+	msg="\n"
+	msg+="${yellowFontColor}"
+	msg+="${PROGRAM_NAME}"
+	msg+="\n"
+	msg+="Version: ${VERSION_NUMBER}"
+	msg+="${resetColors}"
+	msg+="\n"
+	msg+="\n"
+	
+	printf "${msg}"
+	
+}
+# end of ::outputVersion
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
 # ::outputNetworkValuesToConsole
 # 
 # Outputs the network values to the console in a user-friendly format.
@@ -2179,6 +2213,10 @@ case "$1" in
 
 	"--help")
 		outputHelp
+		;;
+		
+	"--version")
+		outputVersion
 		;;
 			
 	"addDevice")
