@@ -5,7 +5,7 @@ This program creates and stores all of its configuraion files in the same direct
 
 It helps with the following:
 
-> adding and removing interfaces by automatically handling necessary configuration files.
+\> adding and removing interfaces by automatically handling necessary configuration files.
 
 > adding and removing devices
 	> automatically determines the IP address of a new device by incrementing the highest IP address of pre-existing devices in the interfaces
