@@ -1,5 +1,5 @@
 
-# H1 WireGuard Skoonie Wrapper
+# WireGuard Skoonie Wrapper
 
 This program serves as a wrapper for WireGuard, helping to simplify and automate many processes.
 
@@ -10,9 +10,13 @@ It helps with the following:
 \> adding and removing interfaces by automatically handling necessary configuration files.
 
 \> adding and removing devices
-	\> automatically determines the IP address of a new device by incrementing the highest IP address of pre-existing devices in the interfaces
-	\> automatically generating and deleting necessary configuration files
-	\> allows for devices to have names and descriptions associated with them.
-	\> auomatically generates the tunnel configuration file for the client device when a device is added.
+
+\>\> automatically determines the IP address of a new device by incrementing the highest IP address of pre-existing devices in the interfaces
+
+\>\> automatically generating and deleting necessary configuration files
+
+\>\> allows for devices to have names and descriptions associated with them.
+
+\>\> auomatically generates the tunnel configuration file for the client device when a device is added.
 
 For a more comprehensive list of what this program can do, run "./wg-skoonie.sh --help
