@@ -27,7 +27,7 @@
 # ::Global Variables
 
 readonly PROGRAM_NAME="WireGuard Skoonie Wrapper"
-readonly VERSION_NUMBER="1.0.3"
+readonly VERSION_NUMBER="1.0.4"
 
 readonly WG_SKOONIE_INTERFACES_FOLDER_PATH="interfaces"
 readonly WG_INTERFACES_FOLDER_PATH="/etc/wireguard"
@@ -2056,7 +2056,7 @@ showAllInterfacesSkoonie() {
 	msg+="Interfaces were loaded from: "
 	msg+="\n"
 	msg+="\n"
-	msg+="	${yellowFontColor}${PWD}${WG_SKOONIE_INTERFACES_FOLDER_PATH}${resetColors}"
+	msg+="	${yellowFontColor}${PWD}/${WG_SKOONIE_INTERFACES_FOLDER_PATH}${resetColors}"
 	msg+="\n"
 	msg+="\n"
 	
