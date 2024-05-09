@@ -51,15 +51,15 @@ Currently, devices are only allowed IPv4 addresses on the Virtual Private Networ
 
 Example 1:
 
-`sudo ./wg-skoonie.sh addInterface "wg0" "90.47.205.206:1111" "10.27.0.0" "24" "1111" "10.27.0.1"`
+`sudo ./wg-skoonie.sh addInterface "wg0" "90.47.205.206:1111" "1111" "10.27.0.0" "24" "10.27.0.1"`
 
 Example 2:
 
-`sudo ./wg-skoonie.sh addInterface "wg0" "90.47.205.206:1211" "10.27.0.0" "24" "1211" "10.27.0.1"`
+`sudo ./wg-skoonie.sh addInterface "wg0" "90.47.205.206:1211" "1211" "10.27.0.0" "24" "10.27.0.1"`
 
 Example 2:
 
-`sudo ./wg-skoonie.sh addInterface "wg0" "wg.website.com:1211" "10.27.255.0" "24" "1211" "10.27.255.1"`
+`sudo ./wg-skoonie.sh addInterface "wg0" "wg.website.com:1211" "1211" "10.27.255.0" "24" "10.27.255.1"`
 
 ..................
 
