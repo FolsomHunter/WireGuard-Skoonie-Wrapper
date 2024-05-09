@@ -43,8 +43,7 @@ Example 2:
 
 `sudo ./wg-skoonie.sh addInterface "wg0" "wg.website.com:1211" "10.27.255.0" "24" "1211" "10.27.255.1"`
 
-.
-.
+..................
 
 **`removeInterface [Interface Name]`**
 
@@ -59,8 +58,9 @@ Use with caution. This command cannot be undone.
 Example Usage:
 
 `sudo ./wg-skoonie.sh removeInterface "wg0"`
-.
-.
+
+..................
+
 **`addDevice [Interface Name] [New Device Name] [New Device Description]`**
 
 Adds a new device to the specified interface. The IP address is auomatically calculated
@@ -77,8 +77,9 @@ wg-skoonie does not.
 Example usage:
 
 `sudo ./wg-skoonie.sh addDevice "wg0" "Kelly's Computer" "Kelly's main computer that he uses at home."`
-.
-.
+
+..................
+
 **`addDeviceSkoonieOnly [Interface Name] [New Device Public Key] [New Device IP Address] [New Device Name] [New Device Description]`**
 
  Adds a new device to the wg-skoonie configuration files for the specified interface, but
@@ -94,8 +95,9 @@ wg-skoonie does not.
 Example usage:
 
 `sudo ./wg-skoonie.sh addDeviceSkoonieOnly "wg0" "Y+bTUNHoyoyrlu9kTT6jEZNyW5l6cS7MMZ/CQs1KqDc=" "10.8.0.1" "Kelly's Computer" "Kelly's main computer that he uses at home."`
-.
-.
+
+..................
+
 **`removeDevice [Interface Name] [Device to Remove Index]`**
 
 Removes the device specified by index from the specified interface.
@@ -107,8 +109,9 @@ To determine a device index, use command `showInterfaceSkoonie [Interface Name]`
 Example usage:
 
 `sudo ./wg-skoonie.sh removeDevice "wg0" "37"`
-.
-.
+
+..................
+
 **`showAllInterfacesSkoonie [Interface Name]`**
 
 Lists all of the interfaces and the network details saved by skoonie.
@@ -118,8 +121,9 @@ Does not output the devices for each interface.
 Example usage:
 
 `sudo ./wg-skoonie.sh showAllInterfacesSkoonie`
-.
-.
+
+..................
+
 **`showInterfaceSkoonie [Interface Name]`**
 
 Outputs the details saved by wg-skoonie for the specified interface.
@@ -127,8 +131,9 @@ Outputs the details saved by wg-skoonie for the specified interface.
 Example usage:
 
 `sudo ./wg-skoonie.sh showInterfaceSkoonie "wg0"`
-.
-.
+
+..................
+
 **`showInterfaceWireGuard [Interface Name]`**
 
 Outputs the details saved by WireGuard for the specified interface.
