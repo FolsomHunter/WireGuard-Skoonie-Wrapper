@@ -1,23 +1,11 @@
 
 # WireGuard Skoonie Wrapper
 
-This program serves as a wrapper for WireGuard, helping to simplify and automate many processes.
+This program serves as a wrapper for WireGuard, helping to simplify and automate management of a VPN (Virtuall Private Network).
+
+It is intended to assist those managing multiple devices across multiple VPNs. New interfaces (VPNs) can be easily created and devices can be easily added to allow for simplified management and tracking of several deployed networks. For example, this program allows a company to easily segregate devices deployed in the field by keeping each client's devices in their own VPN.
 
 This program creates and stores all of its configuraion files in the same directory that the main bash file wg-skoonie.sh is stored. Be sure to put the file in the appropriate directory.
-
-It helps with the following:
-
-\> adding and removing interfaces by automatically handling necessary configuration files.
-
-\> adding and removing devices
-
-\>\> automatically determines the IP address of a new device by incrementing the highest IP address of pre-existing devices in the interfaces
-
-\>\> automatically generating and deleting necessary configuration files
-
-\>\> allows for devices to have names and descriptions associated with them.
-
-\>\> auomatically generates the tunnel configuration file for the client device when a device is added.
 
 ## Supported Commands
 
@@ -29,9 +17,7 @@ Adds a new WireGuard interface.
 	 
 This does NOT check to see if a previous interface with the same name already exists. It is the responsibility of the user to verify this to ensure there are no conflicts.
 
-Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for
-any interface. Support for IPv6 will be added at a later date. WireGuard supports IPv6, but
-wg-skoonie does not.
+Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for any interface. Support for IPv6 will be added at a later date. WireGuard supports IPv6, but wg-skoonie does not.
 
 Example 1:
 
@@ -65,16 +51,13 @@ Example Usage:
 
 **`addDevice [Interface Name] [New Device Name] [New Device Description]`**
 
-Adds a new device to the specified interface. The IP address is auomatically calculated
-by incrementing the highest IP address found in the wg-skoonie configuration files for the
-by 1.
+Adds a new device to the specified interface. The IP address is auomatically calculated by incrementing the highest IP address found in the wg-skoonie configuration files for the by 1.
 
-If the resulting IP address is not within the subnet based on the network details found in
-the wg-skoonie configuration files, errors are thrown.
+If the resulting IP address is not within the subnet based on the network details found in the wg-skoonie configuration files, errors are thrown.
 
-Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for
-any interface. Support for IPv6 will be added at a later date. WireGuard supports IPv6, but
-wg-skoonie does not.
+The tunnel configuration file, including private and public keys, are automatically generated for the newly added device.
+
+Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for any interface. Support for IPv6 will be added at a later date. WireGuard supports IPv6, but wg-skoonie does not.
 
 Example usage:
 
@@ -84,15 +67,11 @@ Example usage:
 
 **`addDeviceSkoonieOnly [Interface Name] [New Device Public Key] [New Device IP Address] [New Device Name] [New Device Description]`**
 
- Adds a new device to the wg-skoonie configuration files for the specified interface, but
-does NOT add the device to WireGuard.
+Adds a new device to the wg-skoonie configuration files for the specified interface, but does NOT add the device to WireGuard.
 
-This command is used when a device already exists in WireGuard and it now needs to be
-logged by wg-skoonie.
+This command is used when a device already exists in WireGuard and it now needs to be logged by wg-skoonie.
 
-Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for
-any interface. Support for IPv6 will be added at a later date. WireGuard supports IPv6, but
-wg-skoonie does not.
+Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for any interface. Support for IPv6 will be added at a later date. WireGuard supports IPv6, but wg-skoonie does not.
 
 Example usage:
 
