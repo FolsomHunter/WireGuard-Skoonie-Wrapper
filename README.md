@@ -42,8 +42,10 @@ Example 2:
 Example 2:
 
 `sudo ./wg-skoonie.sh addInterface "wg0" "wg.website.com:1211" "10.27.255.0" "24" "1211" "10.27.255.1"`
+
 .
 .
+
 **`removeInterface [Interface Name]`**
 
 Removes a WireGuard interface by name.
