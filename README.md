@@ -23,10 +23,12 @@ To run the program:
 
 `sudo ./wg-skoonie.sh`
 
-Before using **wg-skoonie**, WireGuard should already be installed and ufw should already be enabled.
+Before using **wg-skoonie**, WireGuard should already be installed and ufw should already be enabled:
 
 `sudo apt install wireguard`
+
 `sudo ufw enable`
+
 `sudo ufw status`
 
 ## Supported Commands
