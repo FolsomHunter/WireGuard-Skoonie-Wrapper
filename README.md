@@ -5,8 +5,6 @@ This program serves as a wrapper for WireGuard.
 
 It is intended to assist those managing multiple devices across multiple VPNs. New interfaces (VPNs) can be easily created and devices can be easily added to allow for simplified management and tracking of several deployed networks. Multiple interfaces/VPNs can be ran and active at the same time on the same server. For example, this program allows a company to easily segregate devices deployed in the field by keeping each client's devices in their own VPN. 
 
-WireGuard should already be installed and ufw should already be enabled.
-
 This program is a bash script and is written for a Linux computer acting as the server/main connection point for a WireGuard setup.  
 
 The program has been tested on Ubuntu 22.04.4 LTS.
