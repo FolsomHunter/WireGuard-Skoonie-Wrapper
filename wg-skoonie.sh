@@ -27,7 +27,7 @@
 # ::Global Variables
 
 readonly PROGRAM_NAME="WireGuard Skoonie Wrapper"
-readonly VERSION_NUMBER="1.0.4"
+readonly VERSION_NUMBER="1.0.5"
 
 readonly WG_SKOONIE_INTERFACES_FOLDER_PATH="interfaces"
 readonly WG_INTERFACES_FOLDER_PATH="/etc/wireguard"
@@ -169,7 +169,7 @@ addDevice() {
 	local pNewDeviceDescription=$3
 	
 	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
-	local interfaceSkoonieIniFileAbsolutePath="${PWD}${interfaceSkoonieIniFilePath}"
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}/${interfaceSkoonieIniFilePath}"
 	
 	local statusGood=0
 	
@@ -259,7 +259,7 @@ addDeviceToSkoonieOnly() {
 	local pNewDeviceDescription=$5
 	
 	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
-	local interfaceSkoonieIniFileAbsolutePath="${PWD}${interfaceSkoonieIniFilePath}"
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}/${interfaceSkoonieIniFilePath}"
 	
 	local statusGood=0
 	
@@ -1220,19 +1220,19 @@ outputHelp() {
 	msg+="	Example 1:"
 	msg+="\n"
 	msg+="\n"
-	msg+="	sudo ./wg-skoonie.sh addInterface \"wg0\" \"90.47.205.206:1111\" \"10.27.0.0\" \"24\" \"1111\" \"10.27.0.1\""
+	msg+="	sudo ./wg-skoonie.sh addInterface \"wg0\" \"90.47.205.206:1111\" \"1111\" \"10.27.0.0\" \"24\" \"10.27.0.1\""
 	msg+="\n"
 	msg+="\n"
 	msg+="	Example 2:"
 	msg+="\n"
 	msg+="\n"
-	msg+="	sudo ./wg-skoonie.sh addInterface \"wg0\" \"90.47.205.206:1211\" \"10.27.0.0\" \"24\" \"1211\" \"10.27.0.1\""
+	msg+="	sudo ./wg-skoonie.sh addInterface \"wg0\" \"90.47.205.206:1211\" \"1211\" \"10.27.0.0\" \"24\" \"10.27.0.1\""
 	msg+="\n"
 	msg+="\n"
 	msg+="	Example 2:"
 	msg+="\n"
 	msg+="\n"
-	msg+="	sudo ./wg-skoonie.sh addInterface \"wg0\" \"wg.website.com:1211\" \"10.27.255.0\" \"24\" \"1211\" \"10.27.255.1\""
+	msg+="	sudo ./wg-skoonie.sh addInterface \"wg0\" \"wg.website.com:1211\" \"1211\" \"10.27.255.0\" \"24\" \"10.27.255.1\""
 	
 	# removeInterface Command
 	msg+="\n"
@@ -1557,13 +1557,15 @@ readInterfaceIniFile() {
 
 	# Read in all key-value pairs in the file
 	if [ -f "${pFilePath}" ]; then
-		 while IFS='' read -r line; do
+
+		while IFS='' read -r line; do
 		 
 			# Remove carriage returns
-			line=$(echo "$line" | tr -d '\r')
+			line=$(echo "${line}" | tr -d '\r')
 		
 			# Remove leading and trailing whitespaces
-            line=$(echo "$line" | xargs)
+            line="${line#"${line%%[![:space:]]*}"}"  # Remove leading whitespace
+			line="${line%"${line##*[![:space:]]}"}"  # Remove trailing whitespace
 
             # Skip empty lines and lines that start with # or [
             if [[ "$line" =~ ^[[:space:]]*$ || "$line" =~ ^# || "$line" =~ ^\[ ]]; then
@@ -1574,9 +1576,13 @@ readInterfaceIniFile() {
             key="${line%%=*}"
             value="${line#*=}"
 
-            # Trim whitespace from key and value after splitting
-            key=$(echo "$key" | xargs)
-            value=$(echo "$value" | xargs)
+            # Trim whitespace from key after splitting
+			key="${key#"${key%%[![:space:]]*}"}"  # Remove leading whitespace
+			key="${key%"${key##*[![:space:]]}"}"  # Remove trailing whitespace
+			
+			# Trim whitespace from value after splitting
+			value="${value#"${value%%[![:space:]]*}"}"  # Remove leading whitespace
+			value="${value%"${value##*[![:space:]]}"}"  # Remove trailing whitespace
 			
 			case "$key" in
 			
@@ -1649,7 +1655,7 @@ removeDeviceByIndex() {
 	local pDeviceToRemoveIndex=$2
 
 	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
-	local interfaceSkoonieIniFileAbsolutePath="${PWD}${interfaceSkoonieIniFilePath}"
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}/${interfaceSkoonieIniFilePath}"
 	
 	local statusGood=0
 	
@@ -1785,7 +1791,7 @@ removeInterface() {
 	local sanitizedInterfaceName="${pInterfaceName// /-}"
 	
 	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}/${sanitizedInterfaceName}.skoonieini"
-	local interfaceSkoonieIniFileAbsolutePath="${PWD}${interfaceSkoonieIniFilePath}"
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}/${interfaceSkoonieIniFilePath}"
 	
 	local -A networkValues
 	readInterfaceIniFile "$interfaceSkoonieIniFilePath" networkValues
@@ -2110,7 +2116,7 @@ showInterfaceDetailsFromSkoonieIniFiles() {
 	pInterfaceName=$1
 
 	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
-	local interfaceSkoonieIniFileAbsolutePath="${PWD}${interfaceSkoonieIniFilePath}"
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}/${interfaceSkoonieIniFilePath}"
 	
 	local statusGood=0
 	
@@ -2125,7 +2131,7 @@ showInterfaceDetailsFromSkoonieIniFiles() {
 	local -A networkValues
 	
 	# Read existing devices on this interface from file
-	readInterfaceIniFile "$interfaceSkoonieIniFilePath" networkValues
+	readInterfaceIniFile "${interfaceSkoonieIniFilePath}" networkValues
 	
 	local yellowFontColor="\033[33m"
 	local resetColors="\033[0m"
@@ -2220,7 +2226,7 @@ showInterfaceDetailsFromWireGuard() {
 	pInterfaceName=$1
 
 	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
-	local interfaceSkoonieIniFileAbsolutePath="${PWD}${interfaceSkoonieIniFilePath}"
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}/${interfaceSkoonieIniFilePath}"
 	
 	local statusGood=0
 	
