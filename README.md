@@ -21,6 +21,8 @@ It helps with the following:
 
 ## Supported Commands
 
+..................
+
 **`addInterface [Interface Name] [Server Endpoint] [Listening Port] [Network Address] [Subnet Mask CIDR Notation] [Server IP Address on VPN]`**
 
 Adds a new WireGuard interface.
@@ -141,3 +143,5 @@ Outputs the details saved by WireGuard for the specified interface.
 Example usage:
 
 `sudo ./wg-skoonie.sh showInterfaceWireGuard "wg0"`
+
+..................
