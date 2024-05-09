@@ -13,7 +13,7 @@ This program creates and stores all of its configuration files in the same direc
 
 To install the bash script / program:
 
-`wget -P /path/to/directory https://gitlab.com/hunter-schoonover/wireguard-skoonie-wrapper/-/blob/master/wg-skoonie.sh`
+`wget -P /path/to/directory https://gitlab.com/hunter-schoonover/wireguard-skoonie-wrapper/-/raw/master/wg-skoonie.sh`
 
 `sudo chmod +x /path/to/directory/wg-skoonie.sh`
 
