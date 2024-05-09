@@ -1,11 +1,27 @@
 
 # WireGuard Skoonie Wrapper
 
-This program serves as a wrapper for WireGuard, helping to simplify and automate management of a VPN (Virtuall Private Network).
+This program serves as a wrapper for WireGuard, helping to simplify and automate management of a VPN (Virtual Private Network). 
 
 It is intended to assist those managing multiple devices across multiple VPNs. New interfaces (VPNs) can be easily created and devices can be easily added to allow for simplified management and tracking of several deployed networks. For example, this program allows a company to easily segregate devices deployed in the field by keeping each client's devices in their own VPN.
 
-This program creates and stores all of its configuraion files in the same directory that the main bash file wg-skoonie.sh is stored. Be sure to put the file in the appropriate directory.
+WireGuard should already be installed and ufw should already be enabled.
+
+This program is installed and ran on a Linux computer acting as the server/main connection point for a WireGuard setup. It has been tested on Ubuntu 22.04.4 LTS.
+
+This program creates and stores all of its configuration files in the same directory that the main bash file wg-skoonie.sh is stored. Be sure to put the file in the appropriate directory.
+
+To install the bash script / program:
+
+`wget -P /path/to/directory https://gitlab.com/hunter-schoonover/wireguard-skoonie-wrapper/-/blob/master/wg-skoonie.sh`
+
+`sudo chmod +x /path/to/directory/wg-skoonie.sh`
+
+To run the program:
+
+`cd /path/to/directory`
+
+`sudo ./wg-skoonie.sh`
 
 ## Supported Commands
 
@@ -51,7 +67,7 @@ Example Usage:
 
 **`addDevice [Interface Name] [New Device Name] [New Device Description]`**
 
-Adds a new device to the specified interface. The IP address is auomatically calculated by incrementing the highest IP address found in the wg-skoonie configuration files for the by 1.
+Adds a new device to the specified interface. The IP address is automatically calculated by incrementing the highest IP address found in the wg-skoonie configuration files for the by 1.
 
 If the resulting IP address is not within the subnet based on the network details found in the wg-skoonie configuration files, errors are thrown.
 
