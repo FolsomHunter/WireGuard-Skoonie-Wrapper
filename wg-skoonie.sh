@@ -27,7 +27,7 @@
 # ::Global Variables
 
 readonly PROGRAM_NAME="WireGuard Skoonie Wrapper"
-readonly VERSION_NUMBER="1.0.1"
+readonly VERSION_NUMBER="1.0.2"
 
 readonly WG_SKOONIE_INTERFACES_FOLDER_PATH="interfaces"
 readonly WG_INTERFACES_FOLDER_PATH="/etc/wireguard"
@@ -1256,6 +1256,11 @@ outputHelp() {
 	msg+="	If the resulting IP address is not within the subnet based on the network details found in"
 	msg+="\n"
 	msg+="	the wg-skoonie configuration files, errors are thrown."
+	msg+="\n"
+	msg+="\n"
+	msg+="	The tunnel configuration file, including private and public keys, are automatically generated"
+	msg+="\n"
+	msg+="	for the newly added device."
 	msg+="\n"
 	msg+="\n"
 	msg+="	Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for"
