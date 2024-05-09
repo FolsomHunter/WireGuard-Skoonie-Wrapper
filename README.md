@@ -39,8 +39,14 @@ Before using **wg-skoonie**, WireGuard should already be installed and ufw shoul
 
 **`addInterface [Interface Name] [Server Endpoint] [Listening Port] [Network Address] [Subnet Mask CIDR Notation] [Server IP Address on VPN]`**
 
-Adds a new WireGuard interface.
-	 
+Adds a new WireGuard interface and starts it. For WireGuard, adding a new interface is the equivalent of adding a new Virtual Private Network (VPN).
+
+The system will be configured to start the interface automatically on system startup.
+
+Make sure that the port specified in \[Server Endpoint\] and \[Listening Port\] is directed to the device running the WireGuard server. If the server is installed behind an internet router, ensure that the router is forwarding all traffic for the specified port to the server.
+
+Multiple interfaces are NOT able to listen on the same port, so each interface needs its own port specified in \[Server Endpoint\] and \[Listening Port\]. This does NOT check to see if another interface is already listening on the specified port. That is the responsibility of the user.
+
 This does NOT check to see if a previous interface with the same name already exists. It is the responsibility of the user to verify this to ensure there are no conflicts.
 
 Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for any interface. Support for IPv6 will be added at a later date. WireGuard supports IPv6, but wg-skoonie does not.
