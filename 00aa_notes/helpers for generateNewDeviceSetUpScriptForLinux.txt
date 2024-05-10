@@ -1,0 +1,24 @@
+
+These series of commands came in extremely useful when testing the generation and functionality of the Linux setup script for new files.
+
+These were used during development of ::generateNewDeviceSetUpScriptForLinux
+
+Copy all of the lines below at once into putty:
+
+cd ../;
+
+sudo rm -r device1;
+
+sudo ./wg-skoonie.sh addInterface stests "wg.website.com:1001" "1001" "10.8.8.0" "24" "10.8.8.1";
+
+sudo ./wg-skoonie.sh addDevice stests testDev0 desc;
+
+sudo mv -v /path/to/wg-skoonie/interfaces/stests/device1/ device1;
+
+sudo ./wg-skoonie.sh removeInterface stests;
+
+cd device1;
+
+sudo chmod +x stests-setup.sh;
+
+sudo ./stests-setup.sh;
