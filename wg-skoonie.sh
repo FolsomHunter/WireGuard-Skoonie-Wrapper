@@ -409,6 +409,7 @@ addInterface() {
 		msg+="\n"
 		msg+="	Please see above for details."
 		logErrorMessage "${msg}"
+		return 1
 	fi
 	
 	# Resave interface file with SaveConfig set to true
@@ -2104,7 +2105,15 @@ removeInterface() {
 	
 	for ((i = 0; i < ${#filesToDelete[@]}; i++)); do
 	
-		local fileToDeleteAbsPath="${PWD}/${filesToDelete[$i]}"
+		local fileToDeleteAbsPath
+	
+		if [[ "${filesToDelete[$i]}" == /* ]]; then
+			# Absolute path already used
+			fileToDeleteAbsPath="${filesToDelete[$i]}"
+		else
+			# Convert to absolute path
+			fileToDeleteAbsPath="${PWD}/${filesToDelete[$i]}"
+		fi
 	
 		# Delete file/directory if it exists
 		if [[ -f "${filesToDelete[$i]}" ]] || [[ -d "${filesToDelete[$i]}" ]]; 
