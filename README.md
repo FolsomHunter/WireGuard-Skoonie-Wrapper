@@ -87,6 +87,8 @@ If the resulting IP address is not within the subnet based on the network detail
 
 The tunnel configuration file, including private and public keys, are automatically generated for the newly added device.
 
+In case the device being added to the VPN is a Linux device, a setup script will be automatically created and saved to the following location to assist with the setup process.
+
 Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for any interface. Support for IPv6 will be added at a later date. WireGuard supports IPv6, but wg-skoonie does not.
 
 Example usage:
