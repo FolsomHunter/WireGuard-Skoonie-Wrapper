@@ -81,7 +81,7 @@ Example Usage:
 
 **`addDevice [Interface Name] [New Device Name] [New Device Description]`**
 
-Adds a new device to the specified interface. The IP address is automatically calculated by incrementing the highest IP address found in the wg-skoonie configuration files for the by 1.
+Adds a new device to the specified interface. The IP address is automatically calculated by incrementing the highest IP address found in the wg-skoonie configuration files by 1.
 
 If the resulting IP address is not within the subnet based on the network details found in the wg-skoonie configuration files, errors are thrown.
 
