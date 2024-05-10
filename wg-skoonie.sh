@@ -229,6 +229,8 @@ addDevice() {
 	
 	addDeviceToSkoonieIniFileAndGenerateClientConfigruationFile networkValues
 	
+	generateNewDeviceSetUpScriptForLinux networkValues
+	
 	logDeviceAddedSuccessfullyMessage networkValues
 	
 }
@@ -828,6 +830,254 @@ generateNetworkDetailsForSkoonieIniFile() {
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
+# ::generateNewDeviceSetUpScriptForLinux
+# 
+# Generates a linux setup script for the new device that helps install the tunnel configuration 
+# file.
+#
+# On Windows, importing a tunnel configuration file is a very simple process. On Linux, it is more
+# involved.
+#
+# Upon return, the client configuration file will be saved to:
+# 	[Device Folder]/[WireGuard Interface Name]-setup.sh
+#
+# 	[Device Folder] is extracted from pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_ABS_PATH"]
+# 
+# For example:
+#	/etc/wireguard/pickwick/device0/pickick-setup.sh
+#
+# Parameters:
+#
+# $1	Reference to associative array key-value pair for network values.
+#
+
+
+generateNewDeviceSetUpScriptForLinux() {
+
+    local -n pNetworkValues=$1
+	
+	# Extract the directory path
+	local folderAbsPath=$(dirname "${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_ABS_PATH"]}")
+	
+	# Extract the interface name for the new device without the config file extension
+	local interfaceConfigFile=$(basename "${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_ABS_PATH"]}")	# Get filename from path
+	local interfaceName="${interfaceConfigFile%.*}"															# Strip the extension
+	
+	local scriptFilename="${interfaceName}-setup.sh"
+	
+	local scriptFileAbsPath="${folderAbsPath}/${scriptFilename}"
+	
+	pNetworkValues["NEW_DEVICE_CLIENT_CONFIG_FILE_SET_UP_SCRIPT_ABS_PATH"]="${scriptFileAbsPath}"
+	
+	cat > "${scriptFileAbsPath}" <<EOF
+#!/bin/bash
+
+readonly WG_INTERFACES_FOLDER_PATH="${WG_INTERFACES_FOLDER_PATH}"
+readonly INTERFACE_NAME="${interfaceName}"
+readonly INTERFACE_CONFIG_FILENAME="\${INTERFACE_NAME}.conf"
+
+greenBackground="\033[30;42m"
+redBackground="\033[41m"
+yellowFontColor="\033[33m"
+resetColors="\033[0m"
+
+exitStatus=0
+backgroundColor=""
+headerMessage=""
+msg=""
+
+exitProgram() {
+
+	output=""
+	output+="\n"
+	output+="\n"
+	output+="\${backgroundColor}"
+	output+="\n"
+	output+="	!! \${headerMessage} !! start"
+	output+="\${resetColors}"
+	output+="\n"
+	output+="\n"
+	output+="\n	\${msg}"
+	output+="\n"
+	output+="\n"
+	output+="\${backgroundColor}"
+	output+="\n"
+	output+="	!! \${headerMessage} !! end"
+	output+="\${resetColors}"
+	output+="\n"
+	output+="\n"
+
+	printf "\${output}"
+
+	exit "\${exitStatus}"
+
+}
+
+
+# Check if wireguard is installed
+if ! command -v wg >/dev/null 2>&1; then
+
+	# Error
+	
+	exitStatus="1"
+	
+	backgroundColor="\${redBackground}"
+	
+	headerMessage="ERROR"
+	
+	msg+="An installation of WireGuard cannot be found on this system."
+	
+	exitProgram
+
+fi
+
+if [[ ! -d "\${WG_INTERFACES_FOLDER_PATH}" ]]; then
+	echo ""
+    echo "WireGuard interfaces folder path does not already exist. Creating now:"
+	echo ""
+	echo "	\${yellowFontColor}\${WG_INTERFACES_FOLDER_PATH}\${resetColors}"
+	echo ""
+	sudo mkdir -p "\${WG_INTERFACES_FOLDER_PATH}"
+fi
+
+echo ""
+echo "Moving configuration file to WireGuard interfaces folder."
+echo "	from 	\${yellowFontColor}\${INTERFACE_CONFIG_FILENAME}\${resetColors}"
+echo "	to 		\${yellowFontColor}\${WG_INTERFACES_FOLDER_PATH}\${resetColors}"
+
+sudo mv -iv "\${INTERFACE_CONFIG_FILENAME}" "\${WG_INTERFACES_FOLDER_PATH}"
+
+echo ""
+echo "Enabling interface to start on boot."
+
+# Enable wireguard interface to start on boot
+sudo systemctl enable wg-quick@\${INTERFACE_NAME}.service
+
+echo ""
+echo "Starting interface now...."
+
+errorStatus=1
+for (( i=0; i<=10; i++ )); do
+	
+	sudo wg-quick up \${INTERFACE_NAME}
+	echo ""
+	echo "wg-quick up attempt #\${i}"
+
+	if sudo wg show \${INTERFACE_NAME} 2>/dev/null | grep -q 'public key'; then
+		errorStatus=0
+		break
+	else
+		sudo wg-quick down \${INTERFACE_NAME}
+		sleep 1
+	fi
+	
+done
+
+exitStatus=0
+backgroundColor=""
+headerMessage=""
+msg=""
+
+if [[ "\${errorStatus}" -ne 0 ]]
+then
+
+	# Error
+	
+	exitStatus="1"
+	
+	backgroundColor="\${redBackground}"
+	
+	headerMessage="ERROR"
+	
+	msg+="Failed to start interface '\${INTERFACE_NAME}'."
+	msg+="\n"
+	msg+="\n"
+	msg+="	Please see above for details."
+	
+	exitProgram
+
+else
+
+	#SUCCESS
+	
+	exitStatus="0"
+	
+	backgroundColor="\${greenBackground}"
+	
+	headerMessage="SUCCESS"
+	
+	msg+="Interface '\${INTERFACE_NAME}' was added and started successfully."
+	msg+="\n"
+	msg+="\n"
+	msg+="	Please see above for details."
+	msg+="\n"
+	msg+="\n"
+	msg+="	The following command can now be used at any time to verify that the interface is running"
+	msg+="\n"
+	msg+="	and connected to the VPN:"
+	msg+="\n"
+	msg+="\n"
+	msg+="		\${yellowFontColor}sudo wg show \${INTERFACE_NAME}\${resetColors}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	If this system is properly connected to the VPN, the output will look something like this:"
+	msg+="\n"
+	msg+="\n"
+	msg+="\${yellowFontColor}"
+	msg+="		interface: stests"
+	msg+="\n"
+	msg+="		public key: YR2/kYQ0cyTGxG/Xl8DT08Qz3OR30R4psNgp19ZyDhA="
+	msg+="\n"
+	msg+="		private key: (hidden)"
+	msg+="\n"
+	msg+="		listening port: 31491"
+	msg+="\n"
+	msg+="\n"
+	msg+="		peer: IwjK4SklFZPc/ethaO6eGTqRTZ+1cn2+vPHtJaptCH4="
+	msg+="\n"
+	msg+="		endpoint: 98.32.230.166:1001"
+	msg+="\n"
+	msg+="		allowed ips: 10.7.0.0/24"
+	msg+="\n"
+	msg+="		latest handshake: 35 seconds ago"
+	msg+="\n"
+	msg+="		transfer: 329.96 KiB received, 107.75 KiB sent"
+	msg+="\${resetColors}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	If this system is NOT properly connected to the VPN, the output will look something like this:"
+	msg+="\n"
+	msg+="\n"
+	msg+="\${yellowFontColor}"
+	msg+="		interface: stests"
+	msg+="\n"
+	msg+="		public key: YR2/kYQ0cyTGxG/Xl8DT08Qz3OR30R4psNgp19ZyDhA="
+	msg+="\n"
+	msg+="		private key: (hidden)"
+	msg+="\n"
+	msg+="		listening port: 31491"
+	msg+="\n"
+	msg+="\n"
+	msg+="		peer: IwjK4SklFZPc/ethaO6eGTqRTZ+1cn2+vPHtJaptCH4="
+	msg+="\n"
+	msg+="		endpoint: 98.32.230.166:1001"
+	msg+="\n"
+	msg+="		allowed ips: 10.7.0.0/24"
+	msg+="\${resetColors}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	This setup script file can now be deleted from the system."
+	
+	exitProgram
+
+fi
+EOF
+
+}
+# end of ::generateNewDeviceSetUpScriptForLinux
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
 # ::initializeNetworkValues
 # 
 # Initializes network values based on passed in parameters. All initialized values are stored in
@@ -971,6 +1221,12 @@ logDeviceAddedSuccessfullyMessage() {
 
 	local -n pNetworkValues=$1
 	
+	# Extract the interface name for the new device without the config file extension
+	local interfaceConfigFile=$(basename "${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_ABS_PATH"]}")	# Get filename from path
+	local interfaceName="${interfaceConfigFile%.*}" # Strip the extension
+	
+	local scriptFilename="${interfaceName}-setup.sh"
+	
 	local yellowFontColor="\033[33m"
 	local resetColors="\033[0m"
 
@@ -996,9 +1252,32 @@ logDeviceAddedSuccessfullyMessage() {
 	msg+="\n"
 	msg+="	The configuration file can be imported into a client's WireGuard service to add a tunnel to the interface."
 	msg+="\n"
-	msg+="\n	Since it contains the client's private key, it is not recommended to keep the file on this machine"
-	msg+="\n	after it has been added to the client; storing the private key for a WireGuard peer in multiple"
-	msg+="\n	locations can be a security risk."
+	msg+="\n	Since it contains the client's private key, it is not recommended to keep the file on this machine after"
+	msg+="\n	it has been added to the client; storing the private key for a WireGuard peer in multiple locations can"
+	msg+="\n	be a security risk."
+	msg+="\n"
+	msg+="\n"
+	msg+="	In case the device being added to the VPN is a Linux device, a setup script has been created and saved"
+	msg+="\n"
+	msg+="	to the following location to assist with the process:"
+	msg+="\n"
+	msg+="\n"
+	msg+="		${yellowFontColor}${pNetworkValues["NEW_DEVICE_CLIENT_CONFIG_FILE_SET_UP_SCRIPT_ABS_PATH"]}${resetColors}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	To use the setup script, put the tunnel configuration file and the setup script file in the same directory on"
+	msg+="\n"
+	msg+="	the device to be added to the VPN."
+	msg+="\n"
+	msg+="\n"
+	msg+="	Once the files have been put onto the device being added to the VPN, navigate to the directory containing the"
+	msg+="\n"
+	msg+="	files and run the following commands:"
+	msg+="\n"
+	msg+="\n"
+	msg+="		${yellowFontColor}sudo chmod +x ${scriptFilename}${resetColors}"
+	msg+="\n"
+	msg+="		${yellowFontColor}sudo ./${scriptFilename}${resetColors}"
 	
 	logSuccessMessage "${msg}"
 	
