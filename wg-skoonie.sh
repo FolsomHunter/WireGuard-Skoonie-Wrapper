@@ -238,6 +238,93 @@ addDevice() {
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
+# ::addDeviceSpecIp
+# 
+# Adds a new device to WireGuard and to the skoonieini files with the specified IP address.
+#
+# $1	Interface name to add device to.
+# $2	Specified IP address dotted-decimal format of new device.
+# $3	Name of new device.
+# $4	Description of new device.
+#
+
+addDeviceSpecIp() {
+
+	local pInterfaceName=$1
+	local pNewDeviceIpDottedDecimal=$2
+	local pNewDeviceName=$3
+	local pNewDeviceDescription=$4
+	
+	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
+	local interfaceSkoonieIniFileAbsolutePath="${PWD}/${interfaceSkoonieIniFilePath}"
+	
+	local statusGood=0
+	
+	checkInterfaceValidity "${pInterfaceName}" "${interfaceSkoonieIniFilePath}"
+	statusGood=$?
+	
+	# Return with error if status not good
+	if [[ "${statusGood}" -ne 0 ]] ; then
+		return 1
+	fi
+	
+	local -A networkValues
+	
+	# Read existing devices on this interface from file
+	readInterfaceIniFile "$interfaceSkoonieIniFilePath" networkValues
+	
+	# Determine the index of the next device (new device)
+	networkValues["KEY_NEW_DEVICE_INDEX"]=$(( ${#deviceIpAddresses[@]} + 1 ))
+	
+	# Determine the most recent IP addrress used (might be server address)
+	local mostRecentIpAddressDottedDecimal
+	
+	if [[ ${#deviceIpAddressesSorted[@]} -eq 0 ]]; then
+		mostRecentIpAddressDottedDecimal="${networkValues["KEY_SERVER_IP_ADDRESS_ON_VPN"]}"
+	else
+		mostRecentIpAddressDottedDecimal="${deviceIpAddressesSorted[-1]}"
+	fi
+
+	initializeNetworkValues "${pInterfaceName}" "${networkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}" "${networkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}" "${mostRecentIpAddressDottedDecimal}" networkValues
+	
+	# Convert user inputted IP address from dotted-decimal format to integer format
+	local newDeviceIpAsInteger="$(convertIpAddressDottedDecimalToInteger "${pNewDeviceIpDottedDecimal}")"
+	
+	# Stuff user input into network values
+	setNewDeviceValues "${newDeviceIpAsInteger}" "${pNewDeviceName}" "${pNewDeviceDescription}" networkValues
+	
+	outputNetworkValuesToConsole networkValues
+	
+	# Check if IP address is allowed
+	if [[ "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET"]}" != "1" ]]
+	then
+		logDeviceNotAddedSuccessfullyMessage "${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_IS_IN_SUBNET_MSG"]}"
+		return 1
+	fi
+	
+	# Generate private and public keys for the new device
+	networkValues["KEY_NEW_DEVICE_PRIVATE_KEY"]=$(wg genkey)
+    networkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]=$(echo "${networkValues["KEY_NEW_DEVICE_PRIVATE_KEY"]}" | wg pubkey)
+	
+	addDeviceToWireGuard networkValues
+	statusGood=$?
+	
+	# Return with error if status not good
+	if [[ "${statusGood}" -ne 0 ]] ; then
+		return 1
+	fi
+	
+	addDeviceToSkoonieIniFileAndGenerateClientConfigruationFile networkValues
+	
+	generateNewDeviceSetUpScriptForLinux networkValues
+	
+	logDeviceAddedSuccessfullyMessage networkValues
+	
+}
+# end of ::addDeviceSpecIp
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
 # ::addDeviceToSkoonieOnly
 # 
 # Adds a new device to the skoonieini files but does not add the device to WireGuard. This is used
@@ -1170,6 +1257,44 @@ isIndexInArray() {
 	
 }
 # end of ::isIndexInArray
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::isValueInArray
+# 
+# Checks if pValue is in pArray.
+#
+# Parameters:
+#
+# $1	Value to check for.
+# $2	Reference to array.
+#
+# Return:
+#
+# Returns 0 if pValue is in pArray; 1 if it is not.
+#
+
+isValueInArray() {
+
+	local pValue=$1
+	local -n pArray=$2
+	
+	local isInArray=1
+	
+	for ((i = 0; i < ${#pArray[@]}; i++)); do
+		
+		if [[ "${pArray[i]}" == "${pValue}" ]]
+		then
+			isInArray=0
+			break;
+		fi
+		
+	done
+	
+	return "${isInArray}"
+	
+}
+# end of ::isValueInArray
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
@@ -2305,7 +2430,14 @@ setNewDeviceValues() {
 
 		isInSubnet="0"
 		msg="Next IP address ${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]} is INVALID because it is equal to the broadcast address."
-
+		
+	elif isValueInArray "${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" deviceIpAddresses
+	then
+	
+		# technically within subnet, but already exists.
+		isInSubnet="0"
+		msg="New device IP address is INVALID because the IP address has already been assigned to another device."
+		
 	elif [[ "${pNetworkValues1046["KEY_NEW_DEVICE_IP_ADDRESS_BASE_ADDRESS_INTEGER"]}" -eq "${pNetworkValues1046["KEY_NETWORK_ADDRESS_BASE_ADDRESS_INTEGER"]}" ]]
 	then
 
@@ -2562,6 +2694,14 @@ case "$1" in
 		# $3	Name of new device.
 		# $4	Description of new device.
 		addDevice "${2}" "${3}" "${4}"
+		;;
+		
+	"addDeviceSpecIp")
+		# $2	Interface name to add device to.
+		# $3	IP address of new device.
+		# $4	Name of new device.
+		# $5	Description of new device.
+		addDeviceSpecIp "${2}" "${3}" "${4}" "${5}"
 		;;
 
 	"addDeviceSkoonieOnly")
