@@ -2217,9 +2217,13 @@ rewriteInterfaceFileExcludingDeviceAtIndex() {
 		output+="\n"
 		output+="\n"
 		output+="[Device]"
+		output+="\n"
 		output+="IP Address=${deviceIpAddresses[$i]}"
+		output+="\n"
 		output+="Public Key=${devicePublicKeys[$i]}"
+		output+="\n"
 		output+="Name=${deviceNames[$i]}"
+		output+="\n"
 		output+="Description=${deviceDescriptions[$i]}" >> "${pInterfaceSkoonieIniFilePath}"
 	
 	done
