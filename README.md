@@ -97,6 +97,24 @@ Example usage:
 
 ..................
 
+**`addDeviceSpecIp [Interface Name] [IP Address] [New Device Name] [New Device Description]`**
+
+Adds a new device to the specified interface using the specified IP address.
+
+If the resulting IP address is not within the subnet based on the network details found in the wg-skoonie configuration files or if it is already assigned to another device, errors are thrown.
+
+The tunnel configuration file, including private and public keys, are automatically generated for the newly added device.
+
+In case the device being added to the VPN is a Linux device, a setup script will be automatically created to assist with the setup process.
+
+Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for any interface. Support for IPv6 will be added at a later date. WireGuard supports IPv6, but wg-skoonie does not.
+
+Example usage:
+
+`sudo ./wg-skoonie.sh addDeviceSpecIp "wg0" "10.8.0.28" "Kelly's Computer" "Kelly's main computer that he uses at home."`
+
+..................
+
 **`addDeviceSkoonieOnly [Interface Name] [New Device Public Key] [New Device IP Address] [New Device Name] [New Device Description]`**
 
 Adds a new device to the wg-skoonie configuration files for the specified interface, but does NOT add the device to WireGuard.
