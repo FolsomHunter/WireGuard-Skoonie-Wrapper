@@ -436,6 +436,30 @@ addInterface() {
 	# user to ensure that only it can access the private key:
 	sudo chmod go= ${WG_INTERFACES_FOLDER_PATH}/${sanitizedInterfaceName}-private.key
 	
+	local postUpCommands
+	
+	# Add rule allowing all incoming traffic on the WireGuard interface from the network subnet
+	postUpCommands+="iptables -A INPUT -i ${pInterfaceName} -s ${pNetworkAddressDottedDecimal}/${pSubnetMaskAsCidrNotation} -j ACCEPT; "
+	
+	# Add rule allowing all outgoing traffic on the WireGuard interface to the network subnet
+	postUpCommands+="iptables -A OUTPUT -o ${pInterfaceName} -d ${pNetworkAddressDottedDecimal}/${pSubnetMaskAsCidrNotation} -j ACCEPT; "
+	
+	# Add rule forwarding all traffic from devices with IP address within the network 
+	# subnet other devices within the network subnet on the WireGuard interface
+	postUpCommands+="iptables -A FORWARD -i ${pInterfaceName} -o ${pInterfaceName} -s ${pNetworkAddressDottedDecimal}/${pSubnetMaskAsCidrNotation} -d ${pNetworkAddressDottedDecimal}/${pSubnetMaskAsCidrNotation} -j ACCEPT; "
+	
+	local postDownCommands
+	
+	# Remove rule allowing all incoming traffic on the WireGuard interface from the network subnet
+	postDownCommands+="iptables -D INPUT -i ${pInterfaceName} -s ${pNetworkAddressDottedDecimal}/${pSubnetMaskAsCidrNotation} -j ACCEPT; "
+	
+	# Remove rule allowing all outgoing traffic on the WireGuard interface to the network subnet
+	postDownCommands+="iptables -D OUTPUT -o ${pInterfaceName} -d ${pNetworkAddressDottedDecimal}/${pSubnetMaskAsCidrNotation} -j ACCEPT; "
+	
+	# Remove rule forwarding all traffic from devices with IP address within the network 
+	# subnet other devices within the network subnet on the WireGuard interface
+	postDownCommands+="iptables -D FORWARD -i ${pInterfaceName} -o ${pInterfaceName} -s ${pNetworkAddressDottedDecimal}/${pSubnetMaskAsCidrNotation} -d ${pNetworkAddressDottedDecimal}/${pSubnetMaskAsCidrNotation} -j ACCEPT; "
+	
 	local interfaceDetails
 	interfaceDetails+="[Interface]"
 	interfaceDetails+="\n"
@@ -444,6 +468,10 @@ addInterface() {
 	interfaceDetails+="Address = ${pServerIpAddress}/${pSubnetMaskAsCidrNotation}"
 	interfaceDetails+="\n"
 	interfaceDetails+="ListenPort = ${pListeningPort}"
+	interfaceDetails+="\n"
+	interfaceDetails+="PostUp = ${postUpCommands}"
+	interfaceDetails+="\n"
+	interfaceDetails+="PostDown = ${postDownCommands}"
 	interfaceDetails+="\n"
 	
 	# Interface file should have SaveConfig set to false when first turning on the
