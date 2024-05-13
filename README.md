@@ -5,13 +5,13 @@ This program serves as a wrapper for WireGuard.
 
 It is intended to assist those managing multiple devices across multiple VPNs. New interfaces (VPNs) can be easily created and devices can be easily added to allow for simplified management and tracking of several deployed networks. Multiple interfaces/VPNs can be ran and active at the same time on the same server. For example, this program allows a company to easily segregate devices deployed in the field by keeping each client's devices in their own VPN. 
 
-This program is a bash script and is written for a Linux computer acting as the server/main connection point for a WireGuard setup.  
-
-The program has been tested on Ubuntu 22.04.4 LTS.
-
-This program creates and stores all of its configuration files in the same directory that the main bash file wg-skoonie.sh is stored. Be sure to put the file in an appropriate directory.
+This program creates and stores all of its configuration files in the same directory that the main bash file wg-skoonie.sh is stored. Be sure to put the script file in an appropriate directory.
 
 To assist with adding new devices to the VPN as clients, configuration files and setup scripts are automatically generated for each new device added to an interface.
+
+The program is contained in a single bash script file and is written for a Linux computer acting as the server/main connection point for a WireGuard setup.
+
+The program has been tested on Ubuntu 22.04.4 LTS.
 
 To install the bash script / program:
 
@@ -41,13 +41,17 @@ Before using **wg-skoonie**, WireGuard should already be installed and ufw shoul
 
 Adds a new WireGuard interface and starts it. For WireGuard, adding a new interface is the equivalent of adding a new Virtual Private Network (VPN).
 
+Interfaces added using this command are configured to allow client devices on the VPN to communicate with each other. This is achieved by using WireGuard's PostUp and PostDown key-value pairs in the interface's configuration file to modify the server's iptables to forward packets from one client to another client, so long as both clients are on the same interface and within the same subnet. Clients will not be able to talk to other clients on a different interface/VPN.
+
+If it is preferable that client devices NOT to be able to communicate with each other, it is recommended to create an interface per device. This not only prevents the iptables rules added by wg-skoonie from allowing client devices to communicate, but it also creates another layer of separation between the client devices that may help prevent additional security vulnerabilities caused by other iptables rules or services running on the system.
+
 The system will be configured to start the interface automatically on system startup.
 
 Make sure that the port specified in \[Server Endpoint\] and \[Listening Port\] is directed to the device running the WireGuard server. If the server is installed behind an internet router, ensure that the router is forwarding all traffic for the specified port to the server.
 
-Multiple interfaces are NOT able to listen on the same port, so each interface needs its own port specified in \[Server Endpoint\] and \[Listening Port\]. This does NOT check to see if another interface is already listening on the specified port. That is the responsibility of the user.
+Multiple interfaces are NOT able to listen on the same port, so each interface needs its own port specified in \[Server Endpoint\] and \[Listening Port\]. This command does NOT check to see if another interface is already listening on the specified port. That is the responsibility of the user.
 
-This does NOT check to see if a previous interface with the same name already exists. It is the responsibility of the user to verify this to ensure there are no conflicts.
+This command does NOT check to see if a previous interface with the same name already exists. It is the responsibility of the user to verify this to ensure there are no conflicts.
 
 Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for any interface. Support for IPv6 will be added at a later date. WireGuard supports IPv6, but wg-skoonie does not.
 
