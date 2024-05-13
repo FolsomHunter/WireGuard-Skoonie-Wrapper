@@ -1,0 +1,15 @@
+
+These series of commands are useful when removing a WireGuard interface from a client device:
+
+INTERFACE_NAME="[Name]";
+sudo ifdown ${INTERFACE_NAME};
+sudo ip link set ${INTERFACE_NAME} down;
+sudo ip link delete dev ${INTERFACE_NAME};
+sudo wg-quick down ${INTERFACE_NAME};
+sudo rm /etc/wireguard/${INTERFACE_NAME}.conf;
+sudo rm /etc/network/interfaces.d/${INTERFACE_NAME};
+echo ""; echo ""; echo "";
+echo "Interface ${INTERFACE_NAME} should not be listed below:"
+echo ""
+echo ""
+sudo ip link show;
