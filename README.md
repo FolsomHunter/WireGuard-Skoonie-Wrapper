@@ -9,7 +9,9 @@ This program is a bash script and is written for a Linux computer acting as the 
 
 The program has been tested on Ubuntu 22.04.4 LTS.
 
-This program creates and stores all of its configuration files in the same directory that the main bash file wg-skoonie.sh is stored. Be sure to put the file in the appropriate directory.
+This program creates and stores all of its configuration files in the same directory that the main bash file wg-skoonie.sh is stored. Be sure to put the file in an appropriate directory.
+
+To assist with adding new devices to the VPN as clients, configuration files and setup scripts are automatically generated for each new device added to an interface.
 
 To install the bash script / program:
 
