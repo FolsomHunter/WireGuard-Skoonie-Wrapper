@@ -43,33 +43,22 @@ declare -a deviceIpAddressesSorted
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
-# ::addDeviceToSkoonieFilesAndGenerateClientConfigruationFile
+# ::addDeviceToSkoonieFilesAndGenerateConfigFilesAndSetupScripts
 # 
-# Adds a device to the skoonie configuration files
+# Adds a device to the skoonie configuration files, generates client configuration files, and
+# generates setup scripts.
 #
 
-addDeviceToSkoonieIniFileAndGenerateClientConfigruationFile() {
+addDeviceToSkoonieFilesAndGenerateConfigFilesAndSetupScripts() {
 
 	local -n pNetworkValues=$1
 	
-	# $1	Client device index.
-	# $2	Client private key.
-	# $3	Client public key.
-	# $4	Client IP address.
-	# $5	Server public key.
-	# $6	Allowed IP addresses from server and peers.
-	# $7	Server enpoint. IP address or domain with port (e.g. wg.pushin.com:3666)
-	# $8	CIDR for client and server IP addresses.
-	# $9	Folder to save to.
-	# $10	WireGuard Interface Name.
-	deviceClientConfigFilePath=$(generateClientConfigFile "${pNetworkValues["KEY_NEW_DEVICE_INDEX"]}" "${pNetworkValues["KEY_NEW_DEVICE_PRIVATE_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_SERVER_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_SERVER_ENDPOINT"]}" "${pNetworkValues["KEY_SUBNET_MASK_CIDR_NOTATION"]}" "${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}" "${pNetworkValues["KEY_INTERFACE_NAME"]}")
+	addDeviceToSkoonieIniFile "${pNetworkValues["KEY_INTERFACE_INI_FILE_ABS_PATH"]}" "${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_NAME"]}" "${pNetworkValues["KEY_NEW_DEVICE_DESC"]}"
 	
-	addDeviceToSkoonieIniFile "$interfaceSkoonieIniFilePath" "${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}" "${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}" "${pNetworkValues["KEY_NEW_DEVICE_NAME"]}" "${pNetworkValues["KEY_NEW_DEVICE_DESC"]}"
-	
-	pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_ABS_PATH"]=$(realpath "${deviceClientConfigFilePath}")
+	generateNewDeviceClientConfigFilesAndSetupScripts pNetworkValues
 	
 }
-# end of ::addDeviceToSkoonieConfigurationFilesAndGenerateClientConfigruationFile
+# end of ::addDeviceToSkoonieFilesAndGenerateConfigFilesAndSetupScripts
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
@@ -183,6 +172,9 @@ addDevice() {
 	
 	local -A networkValues
 	
+	networkValues["KEY_INTERFACE_NAME"]="${pInterfaceName}"
+	networkValues["KEY_INTERFACE_INI_FILE_ABS_PATH"]="${interfaceSkoonieIniFileAbsolutePath}"
+	
 	# Read existing devices on this interface from file
 	readInterfaceIniFile "$interfaceSkoonieIniFilePath" networkValues
 	
@@ -227,9 +219,7 @@ addDevice() {
 		return 1
 	fi
 	
-	addDeviceToSkoonieIniFileAndGenerateClientConfigruationFile networkValues
-	
-	generateNewDeviceSetUpScriptForLinux networkValues
+	addDeviceToSkoonieFilesAndGenerateConfigFilesAndSetupScripts networkValues
 	
 	logDeviceAddedSuccessfullyMessage networkValues
 	
@@ -782,187 +772,259 @@ convertCidrToSubnetMask() {
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
-# ::generateClientConfigFile
+# ::generateNewDeviceClientConfigFilesAndSetupScripts
 # 
-# Generates the client configuration file using the passed in parameters.
-#
-# Upon return, the client configuration file will be saved to:
-# 	[Folder]/[WireGuard Interface Name]/device[Device index]/[WireGuard Interface Name].conf
-# 
-# For example:
-#	/etc/wireguard/pickwick/device0/pickwick.conf
+# Generates the client configuration files and setup scripts for different operating systems.
 #
 # Parameters:
 #
-# $1	Client device index.
-# $2	Client private key.
-# $3	Client public key.
-# $4	Client IP address.
-# $5	Server public key.
-# $6	Allowed IP addresses from server and peers.
-# $7	Server enpoint. IP address or domain with port (e.g. wg.pushin.com:3666)
-# $8	Subnet mask in CIDR notation for client and server IP addresses.
-# $9	Folder to save to.
-# $10	WireGuard Interface Name.
+# $1	Reference to associative array key-value pair for network values.
+#
+
+generateNewDeviceClientConfigFilesAndSetupScripts() {
+
+    local -n pNetworkValues786=$1
+	
+	pNetworkValues786["KEY_NEW_DEVICE_CLIENT_CONFIG_FILES_FOLDER"]="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pNetworkValues786["KEY_INTERFACE_NAME"]}/device${pNetworkValues786["KEY_NEW_DEVICE_INDEX"]}"
+	
+	generateNewDeviceConfigFileAndSetupScriptForRaspbian pNetworkValues786
+	
+	generateNewDeviceConfigFileAndSetupScriptForUbuntuLessThanV17_10 pNetworkValues786
+	
+	generateNewDeviceConfigFileAndSetupScriptForUbuntuGreaterThanOrEqualToV17_10 pNetworkValues786
+	
+	generateNewDeviceConfigFileForWindows pNetworkValues786
+
+}
+# end of ::generateNewDeviceClientConfigFilesAndSetupScripts
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateNewDeviceConfigFileAndSetupScriptForRaspbian
+# 
+# Generates the client configuration file using the passed in parameters for a machine running
+# Raspbian.
+#
+# Raspbian is still using the traditional ipdownup network management tools.
+#
+# Parameters:
+#
+# $1	Reference to associative array key-value pair for network values.
 #
 # Return:
+# 
+# Upon return, the client configuration file will be saved to:
 #
-# The file path to the client configuration file.
+# 	[Folder]/[WireGuard Interface Name]/device[Device Index]/Raspbian/[WireGuard Interface Name].conf
+# 
+# 	For example: /etc/wireguard/wg0/device0/Raspbian/wg0.conf
+#
+# Upon return, the setup script will be saved to:
+#
+# 	[Folder]/[WireGuard Interface Name]/device[Device Index]/Raspbian/[WireGuard Interface Name]-setup.sh
+# 
+# 	For example: /etc/wireguard/wg0/device0/Raspbian/wg0-setup.conf
 #
 
+generateNewDeviceConfigFileAndSetupScriptForRaspbian() {
 
-generateClientConfigFile() {
+	local -n pNetworkValues825=$1
+	
+	local folderPath="${pNetworkValues825["KEY_NEW_DEVICE_CLIENT_CONFIG_FILES_FOLDER"]}/Raspbian"
+	local configFilePath="${folderPath}/${pNetworkValues825["KEY_INTERFACE_NAME"]}.conf"
+	local scriptFilePath="${folderPath}/${pNetworkValues825["KEY_INTERFACE_NAME"]}-setup.sh"
+	pNetworkValues825["KEY_NEW_DEVICE_CLIENT_CONFIG_RASPBIAN_FILE_PATH"]="${configFilePath}"
+	pNetworkValues825["KEY_NEW_DEVICE_CLIENT_RASPBIAN_SETUP_SCRIPT_FILE_PATH"]="${scriptFilePath}"
+	
+	mkdir -p "${folderPath}"
+	
+	generateNewDeviceConfigFileForTraditionalifupdown "${pNetworkValues825["KEY_NEW_DEVICE_CLIENT_CONFIG_RASPBIAN_FILE_PATH"]}" pNetworkValues825
+	generateNewDeviceSetupScriptForTraditionalifupdown "${pNetworkValues825["KEY_NEW_DEVICE_CLIENT_RASPBIAN_SETUP_SCRIPT_FILE_PATH"]}" pNetworkValues825
+	
+	pNetworkValues825["KEY_NEW_DEVICE_CLIENT_CONFIG_RASPBIAN_FILE_ABS_PATH"]=$(realpath "${pNetworkValues825["KEY_NEW_DEVICE_CLIENT_CONFIG_RASPBIAN_FILE_PATH"]}")
+	pNetworkValues825["KEY_NEW_DEVICE_CLIENT_RASPBIAN_SETUP_SCRIPT_FILE_ABS_PATH"]=$(realpath "${pNetworkValues825["KEY_NEW_DEVICE_CLIENT_RASPBIAN_SETUP_SCRIPT_FILE_PATH"]}")
 
-    local clientDeviceIndex=$1
-	local clientPrivateKey=$2
-	local clientPublicKey=$3
-	local clientIpAddress=$4
+}
+# end of ::generateNewDeviceConfigFileAndSetupScriptForRaspbian
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateNewDeviceConfigFileAndSetupScriptForUbuntuLessThanV17_10
+# 
+# Generates the client configuration file using the passed in parameters for a machine running
+# an Ubuntu distribution with a version less than 17.10.
+#
+#
+# Parameters:
+#
+# $1	Reference to associative array key-value pair for network values.
+#
+# Return:
+# 
+# Upon return, the client configuration file will be saved to:
+#
+# 	[Folder]/[WireGuard Interface Name]/device[Device Index]/Ubuntu-lt-17_10/[WireGuard Interface Name].conf
+# 
+# 	For example: /etc/wireguard/wg0/device0/Ubuntu-lt-V17_10/wg0.conf
+#
+# Upon return, the setup script will be saved to:
+#
+# 	[Folder]/[WireGuard Interface Name]/device[Device Index]/Ubuntu-lt-17_10/[WireGuard Interface Name]-setup.sh
+# 
+# 	For example: /etc/wireguard/wg0/device0/Ubuntu-lt-V17_10/wg0-setup.conf
+#
+
+generateNewDeviceConfigFileAndSetupScriptForUbuntuLessThanV17_10() {
+
+	local -n pNetworkValues1170=$1
 	
-	local serverPublicKey=$5
-	local allowedIps=$6
-	local serverEndpoint=$7
-	
-	local subnetMaskCidrNotation=$8
-	
-	local folder=$9
-	local wireguardInterfaceName=${10}
-	
-	local folderPath="$folder/device$clientDeviceIndex"
-	local filePath="$folderPath/$wireguardInterfaceName.conf"
+	local folderPath="${pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_CONFIG_FILES_FOLDER"]}/Ubuntu-lt-V17_10"
+	local configFilePath="${folderPath}/${pNetworkValues1170["KEY_INTERFACE_NAME"]}.conf"
+	local scriptFilePath="${folderPath}/${pNetworkValues1170["KEY_INTERFACE_NAME"]}-setup.sh"
+	pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_LT_17-10_FILE_PATH"]="${configFilePath}"
+	pNetworkValues["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_SETUP_SCRIPT_FILE_PATH"]="${scriptFilePath}"
 	
 	mkdir -p "$folderPath"
 	
-	cat > "$filePath" <<EOF
+	generateNewDeviceConfigFileForTraditionalifupdown "${pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_LT_17-10_FILE_PATH"]}" pNetworkValues1170
+	generateNewDeviceSetupScriptForTraditionalifupdown "${pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_SETUP_SCRIPT_FILE_PATH"]}" pNetworkValues1170
+	
+	pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_LT_17-10_FILE_ABS_PATH"]=$(realpath "${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_LT_17-10_FILE_PATH"]}")
+	pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_SETUP_SCRIPT_FILE_ABS_PATH"]=$(realpath "${pNetworkValues["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_SETUP_SCRIPT_FILE_PATH"]}")
+
+}
+# end of ::generateNewDeviceConfigFileAndSetupScriptForUbuntuLessThanV17_10
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateNewDeviceConfigFileAndSetupScriptForUbuntuGreaterThanOrEqualToV17_10
+# 
+# Generates the client configuration file using the passed in parameters for a machine running
+# an Ubuntu distribution with a version greater than or equal to 17.10.
+#
+# Ubuntu started using Netplan network management tools in version 17.10.
+#
+# Parameters:
+#
+# $1	Reference to associative array key-value pair for network values.
+#
+# Return:
+# 
+# Upon return, the client configuration file will be saved to:
+#
+# 	[Folder]/[WireGuard Interface Name]/device[Device Index]/Ubuntu-gte-17_10/[WireGuard Interface Name].conf
+# 
+# 	For example: /etc/wireguard/wg0/device0/Ubuntu-gte-V17_10/wg0.conf
+#
+# Upon return, the setup script will be saved to:
+#
+# 	[Folder]/[WireGuard Interface Name]/device[Device Index]/Ubuntu-gte-17_10/[WireGuard Interface Name]-setup.sh
+# 
+# 	For example: /etc/wireguard/wg0/device0/Ubuntu-gte-V17_10/wg0-setup.conf
+#
+
+generateNewDeviceConfigFileAndSetupScriptForUbuntuGreaterThanOrEqualToV17_10() {
+
+	local -n pNetworkValues925=$1
+	
+	local folderPath="${pNetworkValues925["KEY_NEW_DEVICE_CLIENT_CONFIG_FILES_FOLDER"]}/Ubuntu-gte-V17_10"
+	local configFilePath="${folderPath}/${pNetworkValues925["KEY_INTERFACE_NAME"]}.conf"
+	local scriptFilePath="${folderPath}/${pNetworkValues925["KEY_INTERFACE_NAME"]}-setup.sh"
+	pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_GTE_17-10_FILE_PATH"]="${configFilePath}"
+	pNetworkValues["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_SETUP_SCRIPT_FILE_PATH"]="${scriptFilePath}"
+	
+	mkdir -p "$folderPath"
+	
+	generateNewDeviceConfigFileForNetplan "${pNetworkValues925["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_GTE_17-10_FILE_PATH"]}" pNetworkValues925
+	generateNewDeviceSetupScriptForNetplan "${pNetworkValues925["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_SETUP_SCRIPT_FILE_PATH"]}" pNetworkValues925
+	
+	pNetworkValues925["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_GTE_17-10_FILE_ABS_PATH"]=$(realpath "${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_GTE_17-10_FILE_PATH"]}")
+	pNetworkValues925["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_SETUP_SCRIPT_FILE_ABS_PATH"]=$(realpath "${pNetworkValues["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_SETUP_SCRIPT_FILE_PATH"]}")
+
+}
+# end of ::generateNewDeviceConfigFileAndSetupScriptForUbuntuGreaterThanOrEqualToV17_10
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateNewDeviceConfigFileForTraditionalifupdown
+# 
+# Generates a client configuration file for when the new device is using the traditional ifupdown
+# network management tools.
+#
+# The configuration file the traditional ipdownup network management tools cannot contain the 
+# Address key-value pair for the device (e.g., "Address = 10.8.0.3/24"). Having the Address key-value
+# pair causes an error to be logged when executing command  `sudo ifup [Interface Name]` saying that:
+#		Line unrecognized: `Address=10.8.0.3/24'
+#
+# Parameters:
+#
+# $1	File path to save configuration file to.
+# $2	Reference to associative array key-value pair for network values.
+#
+# Return:
+#
+# On return, the configuration file will be saved to pFilePath.
+#
+
+generateNewDeviceConfigFileForTraditionalifupdown() {
+
+	local pFilePath=$1
+	local -n pNetworkValues864=$2
+	
+	cat > "${pFilePath}" <<EOF
 [Interface]
-PrivateKey = $clientPrivateKey
-Address = $clientIpAddress/$subnetMaskCidrNotation
+PrivateKey = ${pNetworkValues864["KEY_NEW_DEVICE_PRIVATE_KEY"]}
 
 [Peer]
-PublicKey = $serverPublicKey
-Endpoint = $serverEndpoint
-AllowedIPs = $allowedIps/$subnetMaskCidrNotation
+PublicKey = ${pNetworkValues864["KEY_SERVER_PUBLIC_KEY"]}
+Endpoint = ${pNetworkValues864["KEY_SERVER_ENDPOINT"]}
+AllowedIPs = ${pNetworkValues864["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}/${pNetworkValues864["KEY_SUBNET_MASK_CIDR_NOTATION"]}
+PersistentKeepalive = 25
 EOF
 
-	echo "$filePath"
-
 }
-# end of ::generateClientConfigFile
+# end of ::generateNewDeviceConfigFileForTraditionalifupdown
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
-# ::generateDeviceDetails
+# ::generateNewDeviceSetupScriptForTraditionalifupdown
 # 
-# Generates and echos device details for the device specified by index.
+# Generates a linux setup script for when the new device is using the traditional ifupdown network
+# management tools.
+#
+# The `sudo wg-quick up [Interface Name]` command does not properly set up the interface and does
+# not create the necessary files in /etc/network/interfaces.d/
+#
+# In place of the `sudo wg-quick up [Interface Name]` command, the command `sudo ifup [Interface Name]`
+# is used. The `sudo wg-quick down [Interface Name]` is used along with  `sudo ifdown [Interface Name]`
+# when performing multiple start attempts to ensure the wireguard interface is properly brought down.
+#
+# Upon return, the setup script file will be saved to the file path in:
+#
+# 	pNetworkValues["KEY_NEW_DEVICE_CLIENT_RASPBIAN_SETUP_SCRIPT_FILE_ABS_PATH"]
 #
 # Parameters:
 #
-# $1	Index of device to generate details for.
+# $1	File path to save script file to.
+# $2	Reference to associative array key-value pair for network values.
+#
+# Return:
+#
+# On return, the setup script file will be saved to pFilePath.
 #
 
-generateDeviceDetails() {
+generateNewDeviceSetupScriptForTraditionalifupdown() {
 
-	local pDeviceIndex=$1
+	local pFilePath=$1
+    local -n pNetworkValues907=$2
 	
-	local msg=""
-	msg+="	Device details according to wg-skoonie:"
-	msg+="\n"
-	msg+="\n"
-	msg+="	Device IP Address	${deviceIpAddresses[$pDeviceIndex]}"
-	msg+="\n"
-	msg+="	Device Public Key	${devicePublicKeys[$pDeviceIndex]}"
-	msg+="\n"
-	msg+="	Device Name		${deviceNames[$pDeviceIndex]}"
-	msg+="\n"
-	msg+="	Device Description	${deviceDescriptions[$pDeviceIndex]}"
-	
-	echo "${msg}"
-
-}
-# end of ::generateDeviceDetails
-##--------------------------------------------------------------------------------------------------
-
-##--------------------------------------------------------------------------------------------------
-# ::generateNetworkDetailsForSkoonieIniFile
-# 
-# Generates and returns network details that can be written to the skoonie ini file.
-#
-# Parameters:
-#
-# $1	Reference to associative array key-value pair for network values.
-#
-
-generateNetworkDetailsForSkoonieIniFile() {
-
-	local -n pNetworkValues724=$1
-	
-	local output
-	
-	output+="[Network]"
-	output+="\n"
-	output+="Server Endpoint=${pNetworkValues724["KEY_SERVER_ENDPOINT"]}"
-	output+="\n"
-	output+="Server Listening Port=${pNetworkValues724["KEY_SERVER_LISTENING_PORT"]}"
-	output+="\n"
-	output+="Server Public Key=${pNetworkValues724["KEY_SERVER_PUBLIC_KEY"]}"
-	output+="\n"
-	output+="Server IP Address On VPN=${pNetworkValues724["KEY_SERVER_IP_ADDRESS_ON_VPN"]}"
-	output+="\n"
-	output+="Network Address=${pNetworkValues724["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}"
-	output+="\n"
-	output+="Subnet Mask CIDR Notation=${pNetworkValues724["KEY_SUBNET_MASK_CIDR_NOTATION"]}"
-	
-	echo "${output}"
-
-}
-# end of ::generateNetworkDetailsForSkoonieIniFile
-##--------------------------------------------------------------------------------------------------
-
-##--------------------------------------------------------------------------------------------------
-# ::generateNewDeviceSetUpScriptForLinux
-# 
-# Generates a linux setup script for the new device that helps install the tunnel configuration 
-# file.
-#
-# On Windows, importing a tunnel configuration file is a very simple process. On Linux, it is more
-# involved.
-#
-# Upon return, the client configuration file will be saved to:
-# 	[Device Folder]/[WireGuard Interface Name]-setup.sh
-#
-# 	[Device Folder] is extracted from pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_ABS_PATH"]
-# 
-# For example:
-#	/etc/wireguard/pickwick/device0/pickick-setup.sh
-#
-# Parameters:
-#
-# $1	Reference to associative array key-value pair for network values.
-#
-
-
-generateNewDeviceSetUpScriptForLinux() {
-
-    local -n pNetworkValues=$1
-	
-	# Extract the directory path
-	local folderAbsPath=$(dirname "${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_ABS_PATH"]}")
-	
-	# Extract the interface name for the new device without the config file extension
-	local interfaceConfigFile=$(basename "${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_ABS_PATH"]}")	# Get filename from path
-	local interfaceName="${interfaceConfigFile%.*}"															# Strip the extension
-	
-	local scriptFilename="${interfaceName}-setup.sh"
-	
-	local scriptFileAbsPath="${folderAbsPath}/${scriptFilename}"
-	
-	pNetworkValues["NEW_DEVICE_CLIENT_CONFIG_FILE_SET_UP_SCRIPT_ABS_PATH"]="${scriptFileAbsPath}"
-	
-	cat > "${scriptFileAbsPath}" <<EOF
+	cat > "${pFilePath}" <<EOF
 #!/bin/bash
 
 readonly WG_INTERFACES_FOLDER_PATH="${WG_INTERFACES_FOLDER_PATH}"
-readonly INTERFACE_NAME="${interfaceName}"
+readonly INTERFACE_NAME="${pNetworkValues907["KEY_INTERFACE_NAME"]}"
 readonly INTERFACE_CONFIG_FILENAME="\${INTERFACE_NAME}.conf"
+readonly NETWORK_INTERFACE_CONFIG_FILE_ABS_PATH="/etc/network/interfaces.d/\${INTERFACE_NAME}"
 
 greenBackground="\033[30;42m"
 redBackground="\033[41m"
@@ -1001,6 +1063,303 @@ exitProgram() {
 
 }
 
+# Check if wireguard is installed
+if ! command -v wg >/dev/null 2>&1; then
+
+	# Error
+	
+	exitStatus="1"
+	
+	backgroundColor="\${redBackground}"
+	
+	headerMessage="ERROR"
+	
+	msg+="An installation of WireGuard cannot be found on this system."
+	
+	exitProgram
+
+fi
+
+if [[ ! -d "\${WG_INTERFACES_FOLDER_PATH}" ]]; then
+	echo ""
+    echo "WireGuard interfaces folder path does not already exist. Creating now:"
+	echo ""
+	echo "	\${yellowFontColor}\${WG_INTERFACES_FOLDER_PATH}\${resetColors}"
+	echo ""
+	sudo mkdir -p "\${WG_INTERFACES_FOLDER_PATH}"
+fi
+
+echo ""
+echo "Moving configuration file to WireGuard interfaces folder."
+echo "	from 	\${yellowFontColor}\${INTERFACE_CONFIG_FILENAME}\${resetColors}"
+echo "	to 		\${yellowFontColor}\${WG_INTERFACES_FOLDER_PATH}\${resetColors}"
+
+sudo mv -iv "\${INTERFACE_CONFIG_FILENAME}" "\${WG_INTERFACES_FOLDER_PATH}"
+
+echo ""
+echo "Enabling interface to start on boot."
+
+
+# Create network interface configuration file for traditional ifupdown
+
+cat > "\${NETWORK_INTERFACE_CONFIG_FILE_ABS_PATH}" <<EOFE
+
+# indicate that interface should be created when the system boots, and on ifup -a
+auto \${INTERFACE_NAME}
+
+# describe wg0 as an IPv4 interface with static address
+iface \${INTERFACE_NAME} inet static
+
+		# the IP address of this client on the WireGuard network
+        address ${pNetworkValues907["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}/${pNetworkValues907["KEY_SUBNET_MASK_CIDR_NOTATION"]}
+
+        # before ifup, create the device with this ip link command
+        pre-up ip link add \${INTERFACE_NAME} type wireguard
+
+        # before ifup, set the WireGuard config from earlier
+        pre-up wg setconf \${INTERFACE_NAME} \${WG_INTERFACES_FOLDER_PATH}/\${INTERFACE_NAME}.conf
+
+        # after ifdown, destroy the wg0 interface
+        post-down ip link del \${INTERFACE_NAME}
+
+EOFE
+
+# end of Create network interface configuration file for traditional ifupdown
+
+echo ""
+echo "Starting interface now...."
+
+errorStatus=1
+for (( i=0; i<=10; i++ )); do
+	
+	sudo ifup \${INTERFACE_NAME}
+	echo ""
+	echo "ifup attempt #\${i}"
+
+	if sudo wg show \${INTERFACE_NAME} 2>/dev/null | grep -q 'public key'; then
+		errorStatus=0
+		break
+	else
+		sudo wg-quick down \${INTERFACE_NAME}
+		sudo ifdown \${INTERFACE_NAME}
+		sleep 1
+	fi
+	
+done
+
+exitStatus=0
+backgroundColor=""
+headerMessage=""
+msg=""
+
+if [[ "\${errorStatus}" -ne 0 ]]
+then
+
+	# Error
+	
+	exitStatus="1"
+	
+	backgroundColor="\${redBackground}"
+	
+	headerMessage="ERROR"
+	
+	msg+="Failed to start interface '\${INTERFACE_NAME}'."
+	msg+="\n"
+	msg+="\n"
+	msg+="	Please see above for details."
+	
+	exitProgram
+
+else
+
+	#SUCCESS
+	
+	exitStatus="0"
+	
+	backgroundColor="\${greenBackground}"
+	
+	headerMessage="SUCCESS"
+	
+	msg+="Interface '\${INTERFACE_NAME}' was added and started successfully."
+	msg+="\n"
+	msg+="\n"
+	msg+="	Please see above for details."
+	msg+="\n"
+	msg+="\n"
+	msg+="	The following command can now be used at any time to verify that the interface is running"
+	msg+="\n"
+	msg+="	and connected to the VPN:"
+	msg+="\n"
+	msg+="\n"
+	msg+="		\${yellowFontColor}sudo wg show \${INTERFACE_NAME}\${resetColors}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	If this system is properly connected to the VPN, the output will look something like this:"
+	msg+="\n"
+	msg+="\n"
+	msg+="\${yellowFontColor}"
+	msg+="		interface: stests"
+	msg+="\n"
+	msg+="		public key: YR2/kYQ0cyTGxG/Xl8DT08Qz3OR30R4psNgp19ZyDhA="
+	msg+="\n"
+	msg+="		private key: (hidden)"
+	msg+="\n"
+	msg+="		listening port: 31491"
+	msg+="\n"
+	msg+="\n"
+	msg+="		peer: IwjK4SklFZPc/ethaO6eGTqRTZ+1cn2+vPHtJaptCH4="
+	msg+="\n"
+	msg+="		endpoint: 98.32.230.166:1001"
+	msg+="\n"
+	msg+="		allowed ips: 10.7.0.0/24"
+	msg+="\n"
+	msg+="		latest handshake: 35 seconds ago"
+	msg+="\n"
+	msg+="		transfer: 329.96 KiB received, 107.75 KiB sent"
+	msg+="\n"
+	msg+="		persistent keepalive: every 25 seconds"
+	msg+="\${resetColors}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	If this system is NOT properly connected to the VPN, the output will look something like this:"
+	msg+="\n"
+	msg+="\n"
+	msg+="\${yellowFontColor}"
+	msg+="		interface: stests"
+	msg+="\n"
+	msg+="		public key: YR2/kYQ0cyTGxG/Xl8DT08Qz3OR30R4psNgp19ZyDhA="
+	msg+="\n"
+	msg+="		private key: (hidden)"
+	msg+="\n"
+	msg+="		listening port: 31491"
+	msg+="\n"
+	msg+="\n"
+	msg+="		peer: IwjK4SklFZPc/ethaO6eGTqRTZ+1cn2+vPHtJaptCH4="
+	msg+="\n"
+	msg+="		endpoint: 98.32.230.166:1001"
+	msg+="\n"
+	msg+="		allowed ips: 10.7.0.0/24"
+	msg+="\${resetColors}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	This setup script file can now be deleted from the system."
+	
+	exitProgram
+
+fi
+EOF
+
+}
+# end of ::generateNewDeviceSetupScriptForTraditionalifupdown
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateNewDeviceConfigFileForNetplan
+# 
+# Generates a client configuration file for when the new device is using the new Netplan network 
+# management tools.
+#
+# The configuration file the new Netplan network management tools CAN and MUST contain the Address 
+# key-value pair for the device (e.g., "Address = 10.8.0.3/24").
+#
+# Parameters:
+#
+# $1	File path to save configuration file to.
+# $2	Reference to associative array key-value pair for network values.
+#
+# Return:
+#
+# On return, the configuration file will be saved to pFilePath.
+#
+
+generateNewDeviceConfigFileForNetplan() {
+
+	local pFilePath=$1
+	local -n pNetworkValues1229=$2
+	
+	cat > "${pFilePath}" <<EOF
+[Interface]
+PrivateKey = ${pNetworkValues1229["KEY_NEW_DEVICE_PRIVATE_KEY"]}
+Address = ${pNetworkValues1229["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}/${pNetworkValues1229["KEY_SUBNET_MASK_CIDR_NOTATION"]}
+
+[Peer]
+PublicKey = ${pNetworkValues1229["KEY_SERVER_PUBLIC_KEY"]}
+Endpoint = ${pNetworkValues1229["KEY_SERVER_ENDPOINT"]}
+AllowedIPs = ${pNetworkValues1229["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}/${pNetworkValues1229["KEY_SUBNET_MASK_CIDR_NOTATION"]}
+PersistentKeepalive = 25
+EOF
+
+}
+# end of ::generateNewDeviceConfigFileForNetplan
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateNewDeviceSetupScriptForNetplan
+# 
+# Generates a linux setup script for when the new device is using the new Netplan network management
+# tools.
+#
+# The `sudo wg-quick up [Interface Name]` command can be used to initialize the interface.
+#
+# Parameters:
+#
+# $1	File path to save script file to.
+# $2	Reference to associative array key-value pair for network values.
+#
+# Return:
+#
+# On return, the setup script file will be saved to pFilePath.
+#
+
+generateNewDeviceSetupScriptForNetplan() {
+
+	local pFilePath=$1
+    local -n pNetworkValues1268=$2
+	
+	cat > "${pFilePath}" <<EOF
+#!/bin/bash
+
+readonly WG_INTERFACES_FOLDER_PATH="${WG_INTERFACES_FOLDER_PATH}"
+readonly INTERFACE_NAME="${pNetworkValues1268["KEY_INTERFACE_NAME"]}"
+readonly INTERFACE_CONFIG_FILENAME="\${INTERFACE_NAME}.conf"
+readonly NETWORK_INTERFACE_CONFIG_FILE_ABS_PATH="/etc/network/interfaces.d/\${INTERFACE_NAME}"
+
+greenBackground="\033[30;42m"
+redBackground="\033[41m"
+yellowFontColor="\033[33m"
+resetColors="\033[0m"
+
+exitStatus=0
+backgroundColor=""
+headerMessage=""
+msg=""
+
+exitProgram() {
+
+	output=""
+	output+="\n"
+	output+="\n"
+	output+="\${backgroundColor}"
+	output+="\n"
+	output+="	!! \${headerMessage} !! start"
+	output+="\${resetColors}"
+	output+="\n"
+	output+="\n"
+	output+="\n	\${msg}"
+	output+="\n"
+	output+="\n"
+	output+="\${backgroundColor}"
+	output+="\n"
+	output+="	!! \${headerMessage} !! end"
+	output+="\${resetColors}"
+	output+="\n"
+	output+="\n"
+
+	printf "\${output}"
+
+	exit "\${exitStatus}"
+
+}
 
 # Check if wireguard is installed
 if ! command -v wg >/dev/null 2>&1; then
@@ -1130,6 +1489,8 @@ else
 	msg+="		latest handshake: 35 seconds ago"
 	msg+="\n"
 	msg+="		transfer: 329.96 KiB received, 107.75 KiB sent"
+	msg+="\n"
+	msg+="		persistent keepalive: every 25 seconds"
 	msg+="\${resetColors}"
 	msg+="\n"
 	msg+="\n"
@@ -1162,7 +1523,127 @@ fi
 EOF
 
 }
-# end of ::generateNewDeviceSetUpScriptForLinux
+# end of ::generateNewDeviceSetupScriptForNetplan
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateNewDeviceConfigFileForWindows
+# 
+# Generates the client configuration file using the passed in parameters for a Windows machine.
+#
+# No setup script is generated because using the GUI to import a tunnel configuration file is 
+# extremely easy on Windows.
+#
+# Parameters:
+#
+# $1	Reference to associative array key-value pair for network values.
+#
+# Return:
+#
+# Upon return, the client configuration file will be saved to:
+#
+# 	[Folder]/[WireGuard Interface Name]/device[Device index]/Windows/[WireGuard Interface Name].conf
+# 
+# 	For example: /etc/wireguard/wg0/device0/Windows/wg0.conf
+#
+# The absolute file path of the configuration file is stored at:
+#	pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_WINDOWS_ABS_PATH"]
+#
+
+generateNewDeviceConfigFileForWindows() {
+
+	local -n pNetworkValues1516=$1
+	
+	local folderPath="${pNetworkValues1516["KEY_NEW_DEVICE_CLIENT_CONFIG_FILES_FOLDER"]}/Windows"
+	local configFilePath="${folderPath}/${pNetworkValues1516["KEY_INTERFACE_NAME"]}.conf"
+	pNetworkValues1516["KEY_NEW_DEVICE_CLIENT_CONFIG_WINDOWS_FILE_PATH"]="${configFilePath}"
+	
+	mkdir -p "$folderPath"
+	
+	cat > "${pNetworkValues1516["KEY_NEW_DEVICE_CLIENT_CONFIG_WINDOWS_FILE_PATH"]}" <<EOF
+[Interface]
+PrivateKey = ${pNetworkValues1516["KEY_NEW_DEVICE_PRIVATE_KEY"]}
+Address = ${pNetworkValues1516["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}/${pNetworkValues1516["KEY_SUBNET_MASK_CIDR_NOTATION"]}
+
+[Peer]
+PublicKey = ${pNetworkValues1516["KEY_SERVER_PUBLIC_KEY"]}
+Endpoint = ${pNetworkValues1516["KEY_SERVER_ENDPOINT"]}
+AllowedIPs = ${pNetworkValues1516["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}/${pNetworkValues1516["KEY_SUBNET_MASK_CIDR_NOTATION"]}
+PersistentKeepalive = 25
+EOF
+
+	pNetworkValues1516["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_WINDOWS_ABS_PATH"]=$(realpath "${pNetworkValues1516["KEY_NEW_DEVICE_CLIENT_CONFIG_WINDOWS_FILE_PATH"]}")
+
+}
+# end of ::generateNewDeviceConfigFileForWindows
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateDeviceDetails
+# 
+# Generates and echos device details for the device specified by index.
+#
+# Parameters:
+#
+# $1	Index of device to generate details for.
+#
+
+generateDeviceDetails() {
+
+	local pDeviceIndex=$1
+	
+	local msg=""
+	msg+="	Device details according to wg-skoonie:"
+	msg+="\n"
+	msg+="\n"
+	msg+="	Device IP Address	${deviceIpAddresses[$pDeviceIndex]}"
+	msg+="\n"
+	msg+="	Device Public Key	${devicePublicKeys[$pDeviceIndex]}"
+	msg+="\n"
+	msg+="	Device Name		${deviceNames[$pDeviceIndex]}"
+	msg+="\n"
+	msg+="	Device Description	${deviceDescriptions[$pDeviceIndex]}"
+	
+	echo "${msg}"
+
+}
+# end of ::generateDeviceDetails
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateNetworkDetailsForSkoonieIniFile
+# 
+# Generates and returns network details that can be written to the skoonie ini file.
+#
+# Parameters:
+#
+# $1	Reference to associative array key-value pair for network values.
+#
+
+generateNetworkDetailsForSkoonieIniFile() {
+
+	local -n pNetworkValues724=$1
+	
+	local output
+	
+	output+="[Network]"
+	output+="\n"
+	output+="Server Endpoint=${pNetworkValues724["KEY_SERVER_ENDPOINT"]}"
+	output+="\n"
+	output+="Server Listening Port=${pNetworkValues724["KEY_SERVER_LISTENING_PORT"]}"
+	output+="\n"
+	output+="Server Public Key=${pNetworkValues724["KEY_SERVER_PUBLIC_KEY"]}"
+	output+="\n"
+	output+="Server IP Address On VPN=${pNetworkValues724["KEY_SERVER_IP_ADDRESS_ON_VPN"]}"
+	output+="\n"
+	output+="Network Address=${pNetworkValues724["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}"
+	output+="\n"
+	output+="Subnet Mask CIDR Notation=${pNetworkValues724["KEY_SUBNET_MASK_CIDR_NOTATION"]}"
+	
+	echo "${output}"
+
+}
+# end of ::generateNetworkDetailsForSkoonieIniFile
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
@@ -1370,10 +1851,7 @@ logDeviceAddedSuccessfullyMessage() {
 	msg+="	Device Description	${pNetworkValues["KEY_NEW_DEVICE_DESC"]}"
 	msg+="\n"
 	msg+="\n"
-	msg+="	The tunnel configuration file for the newly added device has been saved to the following location:"
-	msg+="\n"
-	msg+="\n"
-	msg+="		${yellowFontColor}${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_ABS_PATH"]}${resetColors}"
+	msg+="	Tunnel configuration files for different operating systems have been generated for the newly added device."
 	msg+="\n"
 	msg+="\n"
 	msg+="	The configuration file can be imported into a client's WireGuard service to add a tunnel to the interface."
@@ -1383,17 +1861,14 @@ logDeviceAddedSuccessfullyMessage() {
 	msg+="\n	be a security risk."
 	msg+="\n"
 	msg+="\n"
-	msg+="	In case the device being added to the VPN is a Linux device, a setup script has been created and saved"
+	msg+="	In case the device being added to the VPN is a Linux device, setup scripts have been created and saved for"
 	msg+="\n"
-	msg+="	to the following location to assist with the process:"
-	msg+="\n"
-	msg+="\n"
-	msg+="		${yellowFontColor}${pNetworkValues["NEW_DEVICE_CLIENT_CONFIG_FILE_SET_UP_SCRIPT_ABS_PATH"]}${resetColors}"
+	msg+="	different flavors of Linux."
 	msg+="\n"
 	msg+="\n"
-	msg+="	To use the setup script, put the tunnel configuration file and the setup script file in the same directory on"
+	msg+="	To use the setup script, put the proper tunnel configuration file and setup script file in the same directory"
 	msg+="\n"
-	msg+="	the device to be added to the VPN."
+	msg+="	on the device to be added to the VPN."
 	msg+="\n"
 	msg+="\n"
 	msg+="	Once the files have been put onto the device being added to the VPN, navigate to the directory containing the"
@@ -1404,6 +1879,76 @@ logDeviceAddedSuccessfullyMessage() {
 	msg+="		${yellowFontColor}sudo chmod +x ${scriptFilename}${resetColors}"
 	msg+="\n"
 	msg+="		${yellowFontColor}sudo ./${scriptFilename}${resetColors}"
+	msg+="\n"
+	msg+="\n"
+	msg+="\n"
+	msg+="	Tunnel configuration files and setup scripts were generated for the following systems:"
+	msg+="\n"
+	msg+="\n"
+	msg+="	${yellowFontColor}Windows OS${resetColors}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	Tunnel configuration file:"
+	msg+="\n"
+	msg+="	${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_WINDOWS_ABS_PATH"]}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	Setup script file:"
+	msg+="\n"
+	msg+="	None. Importing the tunnel configuration file via WireGuard GUI on Windows handles everything."
+	msg+="\n"
+	msg+="\n"
+	msg+="	${yellowFontColor}Ubuntu Versions Less Than Version 17.10${resetColors}"
+	msg+="\n"
+	msg+="	(using traditional ifupdown network management tools)"
+	msg+="\n"
+	msg+="\n"
+	msg+="	Tunnel configuration file:"
+	msg+="\n"
+	msg+="	${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_LT_17-10_FILE_ABS_PATH"]}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	Setup script file:"
+	msg+="\n"
+	msg+="	${pNetworkValues["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_SETUP_SCRIPT_FILE_ABS_PATH"]}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	${yellowFontColor}Ubuntu Versions 17.10 & Up${resetColors}"
+	msg+="\n"
+	msg+="	(using new Netplan network management tools)"
+	msg+="\n"
+	msg+="\n"
+	msg+="	Tunnel configuration file:"
+	msg+="\n"
+	msg+="	${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_GTE_17-10_FILE_ABS_PATH"]}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	Setup script file:"
+	msg+="\n"
+	msg+="	${pNetworkValues["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_SETUP_SCRIPT_FILE_ABS_PATH"]}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	${yellowFontColor}Raspbian${resetColors}"
+	msg+="\n"
+	msg+="	(using traditional ifupdown network management tools)"
+	msg+="\n"
+	msg+="\n"
+	msg+="	Tunnel configuration file:"
+	msg+="\n"
+	msg+="	${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_RASPBIAN_FILE_ABS_PATH"]}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	Setup script file:"
+	msg+="\n"
+	msg+="	${pNetworkValues["KEY_NEW_DEVICE_CLIENT_RASPBIAN_SETUP_SCRIPT_FILE_ABS_PATH"]}"
+	msg+="\n"
+	msg+="\n"
+	msg+="\n"
+	msg+="	Note that the Linux setup scripts may work on other operating systems as well. The "
+	msg+="\n"
+	msg+="	difference between commands in each script are all related to the network management"
+	msg+="\n"
+	msg+="	tools in use on each Linux flavor (traditional ifdownup or Netplan)."
 	
 	logSuccessMessage "${msg}"
 	
