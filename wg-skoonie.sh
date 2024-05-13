@@ -1828,9 +1828,7 @@ logDeviceAddedSuccessfullyMessage() {
 
 	local -n pNetworkValues=$1
 	
-	# Extract the interface name for the new device without the config file extension
-	local interfaceConfigFile=$(basename "${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_ABS_PATH"]}")	# Get filename from path
-	local interfaceName="${interfaceConfigFile%.*}" # Strip the extension
+	local interfaceName="${pNetworkValues["KEY_INTERFACE_NAME"]}"
 	
 	local scriptFilename="${interfaceName}-setup.sh"
 	
@@ -1842,7 +1840,7 @@ logDeviceAddedSuccessfullyMessage() {
 	msg+="	Device was successfully added to WireGuard interface '${pNetworkValues["KEY_INTERFACE_NAME"]}'."
 	msg+="\n"
 	msg+="\n"
-	msg+="	Device IP Address	${networkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}"
+	msg+="	Device IP Address	${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}"
 	msg+="\n"
 	msg+="	Device Public Key	${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}"
 	msg+="\n"
