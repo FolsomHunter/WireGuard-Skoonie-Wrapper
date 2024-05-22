@@ -63,7 +63,7 @@ Example 2:
 
 `sudo ./wg-skoonie.sh addInterface "wg0" "90.47.205.206:1211" "1211" "10.27.0.0" "24" "10.27.0.1"`
 
-Example 2:
+Example 3:
 
 `sudo ./wg-skoonie.sh addInterface "wg0" "wg.website.com:1211" "1211" "10.27.255.0" "24" "10.27.255.1"`
 
@@ -91,9 +91,17 @@ Adds a new device to the specified interface. The IP address is automatically ca
 
 If the resulting IP address is not within the subnet based on the network details found in the wg-skoonie configuration files, errors are thrown.
 
-The tunnel configuration file, including private and public keys, are automatically generated for the newly added device.
+When a device is successfully added, alient tunnel configuration file, including private and public keys, is automatically generated for all operating systems.
 
-In case the device being added to the VPN is a Linux device, a setup script will be automatically created to assist with the setup process.
+For cases in which the device being added to the VPN is a Linux device, a setup script and cronjob connectivity checker script will be automatically created to assist with the setup process:
+
+> Setup script for installing the configuration file, configuring the WireGuard interface, and installing the cronjob connectivity checker script.
+
+> Cronjob connectivity checker script that periodically checks the client device's connection to the VPN. If the device cannot ping the server IP address on the VPN, the WireGuard interface will be restarted. This restart is intended to force the DNS Resolver Cache on the client device to perform another DNS lookup for the server's endpoint address. In cases where the endpoint address is using Dynamic DNS, this typically forces WireGuard to connect to the new IP address if it has changed. The cronjob is set up to run every 15 minutes.
+
+Note that if Dynamic DNS is being used, the WireGuard interface on client devices running Windows OS will have to be manually restarted if the IP address changes. wg-skoonie does not generate a script to automate this process on Windows devices.
+
+The operating system for the new device is not specified in this command. Configuration files and scripts are always generated for all supported operating systems.
 
 Currently, devices are only allowed IPv4 addresses on the Virtual Private Network (VPN) for any interface. Support for IPv6 will be added at a later date. WireGuard supports IPv6, but wg-skoonie does not.
 
@@ -151,7 +159,7 @@ Example usage:
 
 **`showAllInterfacesSkoonie [Interface Name]`**
 
-Lists all of the interfaces and the network details saved by skoonie.
+Lists all of the interfaces and the network details saved by wg-skoonie.
 
 Does not output the devices for each interface.
 
