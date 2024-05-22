@@ -95,9 +95,9 @@ When a device is successfully added, alient tunnel configuration file, including
 
 For cases in which the device being added to the VPN is a Linux device, a setup script and cronjob connectivity checker script will be automatically created to assist with the setup process:
 
-> Setup script for installing the configuration file, configuring the WireGuard interface, and installing the cronjob connectivity checker script.
+* Setup script for installing the configuration file, configuring the WireGuard interface, and installing the cronjob connectivity checker script.
 
-> Cronjob connectivity checker script that periodically checks the client device's connection to the VPN. If the device cannot ping the server IP address on the VPN, the WireGuard interface will be restarted. This restart is intended to force the DNS Resolver Cache on the client device to perform another DNS lookup for the server's endpoint address. In cases where the endpoint address is using Dynamic DNS, this typically forces WireGuard to connect to the new IP address if it has changed. The cronjob is set up to run every 15 minutes.
+* Cronjob connectivity checker script that periodically checks the client device's connection to the VPN. If the device cannot ping the server IP address on the VPN, the WireGuard interface will be restarted. This restart is intended to force the DNS Resolver Cache on the client device to perform another DNS lookup for the server's endpoint address. In cases where the endpoint address is using Dynamic DNS, this typically forces WireGuard to connect to the new IP address if it has changed. The cronjob is set up to run every 15 minutes.
 
 Note that if Dynamic DNS is being used, the WireGuard interface on client devices running Windows OS will have to be manually restarted if the IP address changes. wg-skoonie does not generate a script to automate this process on Windows devices.
 
