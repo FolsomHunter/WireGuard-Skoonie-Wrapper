@@ -27,7 +27,7 @@
 # ::Global Variables
 
 readonly PROGRAM_NAME="WireGuard Skoonie Wrapper"
-readonly VERSION_NUMBER="1.1.1"
+readonly VERSION_NUMBER="1.1.0"
 
 readonly WG_SKOONIE_INTERFACES_FOLDER_PATH="interfaces"
 readonly WG_INTERFACES_FOLDER_PATH="/etc/wireguard"
