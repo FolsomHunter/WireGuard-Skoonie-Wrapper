@@ -27,7 +27,7 @@
 # ::Global Variables
 
 readonly PROGRAM_NAME="WireGuard Skoonie Wrapper"
-readonly VERSION_NUMBER="1.0.9"
+readonly VERSION_NUMBER="1.1.0-dev"
 
 readonly WG_SKOONIE_INTERFACES_FOLDER_PATH="interfaces"
 readonly WG_INTERFACES_FOLDER_PATH="/etc/wireguard"
@@ -527,9 +527,6 @@ addInterface() {
 	
 	sudo wg-quick up ${pInterfaceName}
 	
-	# Output service status:
-	sudo systemctl status wg-quick@${sanitizedInterfaceName}.service
-	
 	# initialize network values to be saved to file
 	local -A networkValues
 	networkValues["KEY_SERVER_ENDPOINT"]="${pServerEndpoint}"
@@ -853,6 +850,12 @@ generateNewDeviceClientConfigFilesAndSetupScripts() {
 # 
 # 	For example: /etc/wireguard/wg0/device0/Raspbian/wg0-setup.conf
 #
+# Upon return, the connecitivity connector script meant to be run as a cronjob will be saved to:
+#
+# 	[Folder]/[WireGuard Interface Name]/device[Device Index]/Raspbian/wg-skoonie-cronjob-[WireGuard Interface Name].sh
+# 
+# 	For example: /etc/wireguard/wg0/device0/Raspbian/wg-skoonie-cronjob-wg0.conf
+#
 
 generateNewDeviceConfigFileAndSetupScriptForRaspbian() {
 
@@ -860,17 +863,22 @@ generateNewDeviceConfigFileAndSetupScriptForRaspbian() {
 	
 	local folderPath="${pNetworkValues825["KEY_NEW_DEVICE_CLIENT_CONFIG_FILES_FOLDER"]}/Raspbian"
 	local configFilePath="${folderPath}/${pNetworkValues825["KEY_INTERFACE_NAME"]}.conf"
-	local scriptFilePath="${folderPath}/${pNetworkValues825["KEY_INTERFACE_NAME"]}-setup.sh"
+	local setupScriptFilePath="${folderPath}/${pNetworkValues825["KEY_INTERFACE_NAME"]}-setup.sh"
+	local connectivityScriptFilePath="${folderPath}/wg-skoonie-cronjob-${pNetworkValues825["KEY_INTERFACE_NAME"]}.sh"
+	
 	pNetworkValues825["KEY_NEW_DEVICE_CLIENT_CONFIG_RASPBIAN_FILE_PATH"]="${configFilePath}"
-	pNetworkValues825["KEY_NEW_DEVICE_CLIENT_RASPBIAN_SETUP_SCRIPT_FILE_PATH"]="${scriptFilePath}"
+	pNetworkValues825["KEY_NEW_DEVICE_CLIENT_RASPBIAN_SETUP_SCRIPT_FILE_PATH"]="${setupScriptFilePath}"
+	pNetworkValues825["KEY_NEW_DEVICE_CLIENT_RASPBIAN_CONNECTIVITY_CHECKER_SCRIPT_FILE_PATH"]="${connectivityScriptFilePath}"
 	
 	mkdir -p "${folderPath}"
 	
 	generateNewDeviceConfigFileForTraditionalifupdown "${pNetworkValues825["KEY_NEW_DEVICE_CLIENT_CONFIG_RASPBIAN_FILE_PATH"]}" pNetworkValues825
 	generateNewDeviceSetupScriptForTraditionalifupdown "${pNetworkValues825["KEY_NEW_DEVICE_CLIENT_RASPBIAN_SETUP_SCRIPT_FILE_PATH"]}" pNetworkValues825
+	generateNewDeviceConnectivityCheckerScriptForTraditionalifupdown "${pNetworkValues825["KEY_NEW_DEVICE_CLIENT_RASPBIAN_CONNECTIVITY_CHECKER_SCRIPT_FILE_PATH"]}" pNetworkValues825
 	
 	pNetworkValues825["KEY_NEW_DEVICE_CLIENT_CONFIG_RASPBIAN_FILE_ABS_PATH"]=$(realpath "${pNetworkValues825["KEY_NEW_DEVICE_CLIENT_CONFIG_RASPBIAN_FILE_PATH"]}")
 	pNetworkValues825["KEY_NEW_DEVICE_CLIENT_RASPBIAN_SETUP_SCRIPT_FILE_ABS_PATH"]=$(realpath "${pNetworkValues825["KEY_NEW_DEVICE_CLIENT_RASPBIAN_SETUP_SCRIPT_FILE_PATH"]}")
+	pNetworkValues825["KEY_NEW_DEVICE_CLIENT_RASPBIAN_CONNECTIVITY_CHECKER_SCRIPT_FILE_ABS_PATH"]=$(realpath "${pNetworkValues825["KEY_NEW_DEVICE_CLIENT_RASPBIAN_CONNECTIVITY_CHECKER_SCRIPT_FILE_PATH"]}")
 
 }
 # end of ::generateNewDeviceConfigFileAndSetupScriptForRaspbian
@@ -901,6 +909,12 @@ generateNewDeviceConfigFileAndSetupScriptForRaspbian() {
 # 
 # 	For example: /etc/wireguard/wg0/device0/Ubuntu-lt-V17_10/wg0-setup.conf
 #
+# Upon return, the connecitivity connector script meant to be run as a cronjob will be saved to:
+#
+# 	[Folder]/[WireGuard Interface Name]/device[Device Index]/Ubuntu-lt-17_10/wg-skoonie-cronjob-[WireGuard Interface Name].sh
+# 
+# 	For example: /etc/wireguard/wg0/device0/Ubuntu-lt-17_10/wg-skoonie-cronjob-wg0.conf
+#
 
 generateNewDeviceConfigFileAndSetupScriptForUbuntuLessThanV17_10() {
 
@@ -909,16 +923,21 @@ generateNewDeviceConfigFileAndSetupScriptForUbuntuLessThanV17_10() {
 	local folderPath="${pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_CONFIG_FILES_FOLDER"]}/Ubuntu-lt-V17_10"
 	local configFilePath="${folderPath}/${pNetworkValues1170["KEY_INTERFACE_NAME"]}.conf"
 	local scriptFilePath="${folderPath}/${pNetworkValues1170["KEY_INTERFACE_NAME"]}-setup.sh"
-	pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_LT_17-10_FILE_PATH"]="${configFilePath}"
-	pNetworkValues["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_SETUP_SCRIPT_FILE_PATH"]="${scriptFilePath}"
+	local connectivityScriptFilePath="${folderPath}/wg-skoonie-cronjob-${pNetworkValues1170["KEY_INTERFACE_NAME"]}.sh"
+	
+	pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_LT_17-10_FILE_PATH"]="${configFilePath}"
+	pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_SETUP_SCRIPT_FILE_PATH"]="${scriptFilePath}"
+	pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_CONNECTIVITY_CHECKER_SCRIPT_FILE_PATH"]="${connectivityScriptFilePath}"
 	
 	mkdir -p "$folderPath"
 	
 	generateNewDeviceConfigFileForTraditionalifupdown "${pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_LT_17-10_FILE_PATH"]}" pNetworkValues1170
 	generateNewDeviceSetupScriptForTraditionalifupdown "${pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_SETUP_SCRIPT_FILE_PATH"]}" pNetworkValues1170
+	generateNewDeviceConnectivityCheckerScriptForTraditionalifupdown "${pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_CONNECTIVITY_CHECKER_SCRIPT_FILE_PATH"]}" pNetworkValues1170
 	
-	pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_LT_17-10_FILE_ABS_PATH"]=$(realpath "${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_LT_17-10_FILE_PATH"]}")
-	pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_SETUP_SCRIPT_FILE_ABS_PATH"]=$(realpath "${pNetworkValues["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_SETUP_SCRIPT_FILE_PATH"]}")
+	pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_LT_17-10_FILE_ABS_PATH"]=$(realpath "${pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_LT_17-10_FILE_PATH"]}")
+	pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_SETUP_SCRIPT_FILE_ABS_PATH"]=$(realpath "${pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_SETUP_SCRIPT_FILE_PATH"]}")
+	pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_CONNECTIVITY_CHECKER_SCRIPT_FILE_ABS_PATH"]=$(realpath "${pNetworkValues1170["KEY_NEW_DEVICE_CLIENT_UBUNTU_LT_17-10_CONNECTIVITY_CHECKER_SCRIPT_FILE_PATH"]}")
 
 }
 # end of ::generateNewDeviceConfigFileAndSetupScriptForUbuntuLessThanV17_10
@@ -950,6 +969,12 @@ generateNewDeviceConfigFileAndSetupScriptForUbuntuLessThanV17_10() {
 # 
 # 	For example: /etc/wireguard/wg0/device0/Ubuntu-gte-V17_10/wg0-setup.conf
 #
+# Upon return, the connecitivity connector script meant to be run as a cronjob will be saved to:
+#
+# 	[Folder]/[WireGuard Interface Name]/device[Device Index]/Ubuntu-gte-17_10/wg-skoonie-cronjob-[WireGuard Interface Name].sh
+# 
+# 	For example: /etc/wireguard/wg0/device0/Ubuntu-gte-17_10/wg-skoonie-cronjob-wg0.conf
+#
 
 generateNewDeviceConfigFileAndSetupScriptForUbuntuGreaterThanOrEqualToV17_10() {
 
@@ -958,16 +983,21 @@ generateNewDeviceConfigFileAndSetupScriptForUbuntuGreaterThanOrEqualToV17_10() {
 	local folderPath="${pNetworkValues925["KEY_NEW_DEVICE_CLIENT_CONFIG_FILES_FOLDER"]}/Ubuntu-gte-V17_10"
 	local configFilePath="${folderPath}/${pNetworkValues925["KEY_INTERFACE_NAME"]}.conf"
 	local scriptFilePath="${folderPath}/${pNetworkValues925["KEY_INTERFACE_NAME"]}-setup.sh"
-	pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_GTE_17-10_FILE_PATH"]="${configFilePath}"
-	pNetworkValues["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_SETUP_SCRIPT_FILE_PATH"]="${scriptFilePath}"
+	local connectivityScriptFilePath="${folderPath}/wg-skoonie-cronjob-${pNetworkValues925["KEY_INTERFACE_NAME"]}.sh"
+	
+	pNetworkValues925["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_GTE_17-10_FILE_PATH"]="${configFilePath}"
+	pNetworkValues925["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_SETUP_SCRIPT_FILE_PATH"]="${scriptFilePath}"
+	pNetworkValues925["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_CONNECTIVITY_CHECKER_SCRIPT_FILE_PATH"]="${connectivityScriptFilePath}"
 	
 	mkdir -p "$folderPath"
 	
 	generateNewDeviceConfigFileForNetplan "${pNetworkValues925["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_GTE_17-10_FILE_PATH"]}" pNetworkValues925
 	generateNewDeviceSetupScriptForNetplan "${pNetworkValues925["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_SETUP_SCRIPT_FILE_PATH"]}" pNetworkValues925
+	generateNewDeviceConnectivityCheckerScriptForNetplan "${pNetworkValues925["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_CONNECTIVITY_CHECKER_SCRIPT_FILE_PATH"]}" pNetworkValues925
 	
-	pNetworkValues925["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_GTE_17-10_FILE_ABS_PATH"]=$(realpath "${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_GTE_17-10_FILE_PATH"]}")
-	pNetworkValues925["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_SETUP_SCRIPT_FILE_ABS_PATH"]=$(realpath "${pNetworkValues["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_SETUP_SCRIPT_FILE_PATH"]}")
+	pNetworkValues925["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_GTE_17-10_FILE_ABS_PATH"]=$(realpath "${pNetworkValues925["KEY_NEW_DEVICE_CLIENT_CONFIG_UBUNTU_GTE_17-10_FILE_PATH"]}")
+	pNetworkValues925["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_SETUP_SCRIPT_FILE_ABS_PATH"]=$(realpath "${pNetworkValues925["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_SETUP_SCRIPT_FILE_PATH"]}")
+	pNetworkValues925["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_CONNECTIVITY_CHECKER_SCRIPT_FILE_ABS_PATH"]=$(realpath "${pNetworkValues925["KEY_NEW_DEVICE_CLIENT_UBUNTU_GTE_17-10_CONNECTIVITY_CHECKER_SCRIPT_FILE_PATH"]}")
 
 }
 # end of ::generateNewDeviceConfigFileAndSetupScriptForUbuntuGreaterThanOrEqualToV17_10
@@ -1046,13 +1076,19 @@ generateNewDeviceSetupScriptForTraditionalifupdown() {
 	local pFilePath=$1
     local -n pNetworkValues907=$2
 	
-	cat > "${pFilePath}" <<EOF
+	local exitFunction=$(generateScriptContentExitProgramFunction)
+	local cronJobFunctions=$(generateScriptContentAddAndRemoveCronJobFunctions)
+	
+	cat > "${pFilePath}" << EOF
 #!/bin/bash
 
 readonly WG_INTERFACES_FOLDER_PATH="${WG_INTERFACES_FOLDER_PATH}"
 readonly INTERFACE_NAME="${pNetworkValues907["KEY_INTERFACE_NAME"]}"
 readonly INTERFACE_CONFIG_FILENAME="\${INTERFACE_NAME}.conf"
 readonly NETWORK_INTERFACE_CONFIG_FILE_ABS_PATH="/etc/network/interfaces.d/\${INTERFACE_NAME}"
+
+readonly INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME="wg-skoonie-cronjob-\${INTERFACE_NAME}.sh"
+readonly WG_SKOONIE_CRONJOBS_FOLDER_PATH="/etc/cron.wg-skoonie"
 
 greenBackground="\033[30;42m"
 redBackground="\033[41m"
@@ -1064,32 +1100,9 @@ backgroundColor=""
 headerMessage=""
 msg=""
 
-exitProgram() {
+${exitFunction}
 
-	output=""
-	output+="\n"
-	output+="\n"
-	output+="\${backgroundColor}"
-	output+="\n"
-	output+="	!! \${headerMessage} !! start"
-	output+="\${resetColors}"
-	output+="\n"
-	output+="\n"
-	output+="\n	\${msg}"
-	output+="\n"
-	output+="\n"
-	output+="\${backgroundColor}"
-	output+="\n"
-	output+="	!! \${headerMessage} !! end"
-	output+="\${resetColors}"
-	output+="\n"
-	output+="\n"
-
-	printf "\${output}"
-
-	exit "\${exitStatus}"
-
-}
+${cronJobFunctions}
 
 # Check if wireguard is installed
 if ! command -v wg >/dev/null 2>&1; then
@@ -1103,8 +1116,11 @@ if ! command -v wg >/dev/null 2>&1; then
 	headerMessage="ERROR"
 	
 	msg+="An installation of WireGuard cannot be found on this system."
+	msg+="\n"
+	msg+="\n"
+	msg+="	Try using \"sudo apt install wireguard\"."
 	
-	exitProgram
+	exitProgram "\${headerMessage}" "\${msg}" "\${backgroundColor}" "\${exitStatus}"
 
 fi
 
@@ -1120,7 +1136,7 @@ fi
 echo ""
 echo "Moving configuration file to WireGuard interfaces folder."
 echo "	from 	\${yellowFontColor}\${INTERFACE_CONFIG_FILENAME}\${resetColors}"
-echo "	to 		\${yellowFontColor}\${WG_INTERFACES_FOLDER_PATH}\${resetColors}"
+echo "	to 	\${yellowFontColor}\${WG_INTERFACES_FOLDER_PATH}\${resetColors}"
 
 sudo mv -iv "\${INTERFACE_CONFIG_FILENAME}" "\${WG_INTERFACES_FOLDER_PATH}"
 
@@ -1153,6 +1169,31 @@ iface \${INTERFACE_NAME} inet static
 EOFE
 
 # end of Create network interface configuration file for traditional ifupdown
+
+# Set up cronjob connectivity checker script
+
+echo ""
+echo "Moving wg-skoonie cronjob script for verifying connectivity to VPN."
+echo "	from 	\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}"
+echo "	to 	\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}"
+
+sudo mkdir -p "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}"
+
+sudo mv -iv "\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}" "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}"
+
+# Change ownership to root for additional security
+sudo chown root:root "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}"
+
+# Make file executable
+sudo chmod +x "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}"
+
+echo ""
+echo "Adding cronjob to root's crontab to call wg-skoonie connectivity checker every 15 minutes."
+echo "	*/15 * * * * \${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME} >/dev/null 2>&1\${resetColors}"
+
+addCronJob "*/15 * * * *" "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME} >/dev/null 2>&1"
+
+# end of Set up cronjob connectivity checker script
 
 echo ""
 echo "Starting interface now...."
@@ -1196,7 +1237,7 @@ then
 	msg+="\n"
 	msg+="	Please see above for details."
 	
-	exitProgram
+	exitProgram "\${headerMessage}" "\${msg}" "\${backgroundColor}" "\${exitStatus}"
 
 else
 
@@ -1272,13 +1313,79 @@ else
 	msg+="\n"
 	msg+="	This setup script file can now be deleted from the system."
 	
-	exitProgram
+	exitProgram "\${headerMessage}" "\${msg}" "\${backgroundColor}" "\${exitStatus}"
 
 fi
 EOF
 
 }
 # end of ::generateNewDeviceSetupScriptForTraditionalifupdown
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateNewDeviceConnectivityCheckerScriptForTraditionalifupdown
+# 
+# Generates a linux bash script that checks if the device its ran in is connected to the WireGuard 
+# VPN. The script generated is meant to be ran on devices using the traditional ifupdown network
+# management tools.
+#
+# To check if the device is connected to the WireGuard VPN, it attempts to ping the server's IP 
+# address on the VPN subnet. 
+#
+# If the server cannot be reached, the WireGuard interface is brought down and then back up. This 
+# is primarily done to force a DNS lookup in case a domain name was used as the server's endpoint. 
+# WireGuard only performs a DNS lookup when the interface is brought up. If Dynamic DNS is being 
+# used, a change in IP address will not be detected until WireGuard is brought down and back up 
+# again.
+#
+# The server is pinged every 10 minutes to verify connectivity.
+#
+# Parameters:
+#
+# $1	File path to save script file to.
+# $2	Reference to associative array key-value pair for network values.
+#
+# Return:
+#
+# On return, the setup script file will be saved to pFilePath.
+#
+
+generateNewDeviceConnectivityCheckerScriptForTraditionalifupdown() {
+
+	local pFilePath=$1
+    local -n pNetworkValues1317=$2
+	
+	local headerComments=$(generateScriptContentCronjobHeaderComments)
+	
+	local bringWireGuardInterfaceDownThenUpFunction=$(generateScriptContentBringWireGuardInterfaceDownThenUpFunctionForDevicesUsingTraditionalifupdown)
+	
+	local attemptServerPingFunction=$(generateScriptContentAttemptServerPing)
+	
+	local variablesWithValuesInjectedFromMainScript=$(generateScriptContentCronjobVariablesWithValuesInjectedFromMainScript pNetworkValues1317)
+	
+	local variablesWithoutValuesInjectedFromMainScript=$(generateScriptContentCronjobVariablesWithoutValuesInjectedFromMainScript)
+	
+	local mainCode=$(generateScriptContentCronjobMainCode)
+
+	cat > "${pFilePath}" << EOF
+#!/bin/bash
+
+${headerComments}
+
+${attemptServerPingFunction}
+	
+${bringWireGuardInterfaceDownThenUpFunction}
+	
+${variablesWithValuesInjectedFromMainScript}
+
+${variablesWithoutValuesInjectedFromMainScript}
+
+${mainCode}
+
+EOF
+
+}
+# end of ::generateNewDeviceConnectivityCheckerScriptForTraditionalifupdown
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
@@ -1344,6 +1451,9 @@ generateNewDeviceSetupScriptForNetplan() {
 	local pFilePath=$1
     local -n pNetworkValues1268=$2
 	
+	local exitFunction=$(generateScriptContentExitProgramFunction)
+	local cronJobFunctions=$(generateScriptContentAddAndRemoveCronJobFunctions)
+	
 	cat > "${pFilePath}" <<EOF
 #!/bin/bash
 
@@ -1351,6 +1461,9 @@ readonly WG_INTERFACES_FOLDER_PATH="${WG_INTERFACES_FOLDER_PATH}"
 readonly INTERFACE_NAME="${pNetworkValues1268["KEY_INTERFACE_NAME"]}"
 readonly INTERFACE_CONFIG_FILENAME="\${INTERFACE_NAME}.conf"
 readonly NETWORK_INTERFACE_CONFIG_FILE_ABS_PATH="/etc/network/interfaces.d/\${INTERFACE_NAME}"
+
+readonly INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME="wg-skoonie-cronjob-\${INTERFACE_NAME}.sh"
+readonly WG_SKOONIE_CRONJOBS_FOLDER_PATH="/etc/cron.wg-skoonie"
 
 greenBackground="\033[30;42m"
 redBackground="\033[41m"
@@ -1362,32 +1475,9 @@ backgroundColor=""
 headerMessage=""
 msg=""
 
-exitProgram() {
+${exitFunction}
 
-	output=""
-	output+="\n"
-	output+="\n"
-	output+="\${backgroundColor}"
-	output+="\n"
-	output+="	!! \${headerMessage} !! start"
-	output+="\${resetColors}"
-	output+="\n"
-	output+="\n"
-	output+="\n	\${msg}"
-	output+="\n"
-	output+="\n"
-	output+="\${backgroundColor}"
-	output+="\n"
-	output+="	!! \${headerMessage} !! end"
-	output+="\${resetColors}"
-	output+="\n"
-	output+="\n"
-
-	printf "\${output}"
-
-	exit "\${exitStatus}"
-
-}
+${cronJobFunctions}
 
 # Check if wireguard is installed
 if ! command -v wg >/dev/null 2>&1; then
@@ -1417,10 +1507,35 @@ fi
 
 echo ""
 echo "Moving configuration file to WireGuard interfaces folder."
-echo "	from 	\${yellowFontColor}\${INTERFACE_CONFIG_FILENAME}\${resetColors}"
-echo "	to 		\${yellowFontColor}\${WG_INTERFACES_FOLDER_PATH}\${resetColors}"
+echo "	from 	\${INTERFACE_CONFIG_FILENAME}"
+echo "	to 	\${WG_INTERFACES_FOLDER_PATH}"
 
 sudo mv -iv "\${INTERFACE_CONFIG_FILENAME}" "\${WG_INTERFACES_FOLDER_PATH}"
+
+# Set up cronjob connectivity checker script
+
+echo ""
+echo "Moving wg-skoonie cronjob script for verifying connectivity to VPN."
+echo "	from 	\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}"
+echo "	to 	\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}"
+
+sudo mkdir -p "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}"
+
+sudo mv -iv "\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}" "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}"
+
+# Change ownership to root for additional security
+sudo chown root:root "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}"
+
+# Make file executable
+sudo chmod +x "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}"
+
+echo ""
+echo "Adding cronjob to root's crontab to call wg-skoonie connectivity checker every 15 minutes."
+echo "	\${yellowFontColor}\*/15 * * * * \${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME} >/dev/null 2>&1\${resetColors}"
+generateCronJobFunctionsForScripts
+addCronJob "*/15 * * * *" "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME} >/dev/null 2>&1"
+
+# end of Set up cronjob connectivity checker script
 
 echo ""
 echo "Enabling interface to start on boot."
@@ -1555,6 +1670,72 @@ EOF
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
+# ::generateNewDeviceConnectivityCheckerScriptForNetplan
+# 
+# Generates a linux bash script that checks if the device its ran in is connected to the WireGuard 
+# VPN. The script generated is meant to be ran on devices using the Netplan network management 
+# tools.
+#
+# To check if the device is connected to the WireGuard VPN, it attempts to ping the server's IP 
+# address on the VPN subnet. 
+#
+# If the server cannot be reached, the WireGuard interface is brought down and then back up. This 
+# is primarily done to force a DNS lookup in case a domain name was used as the server's endpoint. 
+# WireGuard only performs a DNS lookup when the interface is brought up. If Dynamic DNS is being 
+# used, a change in IP address will not be detected until WireGuard is brought down and back up 
+# again.
+#
+# The server is pinged every 10 minutes to verify connectivity.
+#
+# Parameters:
+#
+# $1	File path to save script file to.
+# $2	Reference to associative array key-value pair for network values.
+#
+# Return:
+#
+# On return, the setup script file will be saved to pFilePath.
+#
+
+generateNewDeviceConnectivityCheckerScriptForNetplan() {
+
+	local pFilePath=$1
+    local -n pNetworkValues1669=$2
+	
+	local headerComments=$(generateScriptContentCronjobHeaderComments)
+	
+	local bringWireGuardInterfaceDownThenUpFunction=$(generateScriptContentBringWireGuardInterfaceDownThenUpFunctionForDevicesUsingNetplan)
+	
+	local attemptServerPingFunction=$(generateScriptContentAttemptServerPing)
+	
+	local variablesWithValuesInjectedFromMainScript=$(generateScriptContentCronjobVariablesWithValuesInjectedFromMainScript pNetworkValues1669)
+	
+	local variablesWithoutValuesInjectedFromMainScript=$(generateScriptContentCronjobVariablesWithoutValuesInjectedFromMainScript)
+	
+	local mainCode=$(generateScriptContentCronjobMainCode)
+
+	cat > "${pFilePath}" << EOF
+#!/bin/bash
+
+${headerComments}
+
+${attemptServerPingFunction}
+	
+${bringWireGuardInterfaceDownThenUpFunction}
+	
+${variablesWithValuesInjectedFromMainScript}
+
+${variablesWithoutValuesInjectedFromMainScript}
+
+${mainCode}
+
+EOF
+
+}
+# end of ::generateNewDeviceConnectivityCheckerScriptForNetplan
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
 # ::generateNewDeviceConfigFileForWindows
 # 
 # Generates the client configuration file using the passed in parameters for a Windows machine.
@@ -1672,6 +1853,659 @@ generateNetworkDetailsForSkoonieIniFile() {
 
 }
 # end of ::generateNetworkDetailsForSkoonieIniFile
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentAttemptServerPing
+# 
+# Generates and echos the text for a function that is capable of pinging a server's IP address on
+# the VPN.
+#
+# Return:
+#
+# On return, the generated texts are echoed.
+#
+
+generateScriptContentAttemptServerPing() {
+	
+	local text=$(cat << 'EOF'
+##--------------------------------------------------------------------------------------------------
+# ::attemptServerPing
+#
+
+attemptServerPing() {
+
+	local pServerIpOnVpn=$1
+	
+	local exitStatus=1
+	
+	# Attempts pinging 4 times
+	for (( i=0; i<=4; i++ )); do
+	
+		# Ping the server
+		ping -c 1 "${pServerIpOnVpn}" > /dev/null 2>&1
+		
+		local pingExitStatus=$?
+		
+		# One successful ping is considered a success
+		if [[ ${pingExitStatus} -eq 0 ]]; then
+			exitStatus=0
+			break
+		fi
+		
+	done
+
+	# Return results (0 on success, 1 on failure)
+	return ${exitStatus}
+	
+}
+# end of ::attemptServerPing
+##--------------------------------------------------------------------------------------------------
+
+EOF
+)
+
+	echo "${text}"
+	
+}
+# end of ::generateScriptContentAttemptServerPing
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentBringWireGuardInterfaceDownThenUpFunctionForDevicesUsingTraditionalifupdown
+# 
+# Generates and echos the text for a function that is capable of bringing WireGuard interface down
+# and then back up again on a device using the traditional ifupdown network management tools. The 
+# generated text can be put in a bash script file.
+#
+# Return:
+#
+# On return, the generated texts are echoed.
+#
+
+generateScriptContentBringWireGuardInterfaceDownThenUpFunctionForDevicesUsingTraditionalifupdown() {
+	
+	local text=$(cat << 'EOF'
+##--------------------------------------------------------------------------------------------------
+# ::bringWireGuardDownAndForceDnsUpdate
+#
+
+bringWireGuardDownAndForceDnsUpdate() {
+
+	local pInterfaceName=$1
+	local pServerEndpointAddress=$2
+
+	# Bring the interface down
+	sudo wg-quick down ${pInterfaceName}
+	sudo ifdown ${pInterfaceName}
+	
+	# Get the address info of the VPN server endpoint. If 
+	# this is a domain name, this typically causes the DNS
+	# cache on this device to be updated. Useful for Dynamic
+	# DNS setups
+	resolvedIpAddress=$(sudo getent ahosts "${pServerEndpointAddress}" | grep "STREAM" | awk '{ print $1 }')
+	
+}
+# end of ::bringWireGuardDownAndForceDnsUpdate
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::bringWireGuardInterfaceDownThenUp
+#
+
+bringWireGuardInterfaceDownThenUp() {
+
+	local pInterfaceName=$1
+	local pServerEndpointAddress=$2
+	local pServerIpOnVpn=$3
+
+	bringWireGuardDownAndForceDnsUpdate "${pInterfaceName}" "${pServerEndpointAddress}"
+	
+	# Attempt to bring up interface and ping server 2 times
+	local errorStatus=1
+	for (( i=0; i<=2; i++ )); do
+
+		sudo ifup ${pInterfaceName}
+		echo ""
+		echo "ifup attempt #${i}"
+
+		if sudo wg show ${pInterfaceName} 2>/dev/null | grep -q 'public key' && attemptServerPing "${pServerIpOnVpn}"; then
+		
+			# If the wg show command properly presented the interface
+			# and the server can be pinged on the VPN, consider it a
+			# success
+			errorStatus=0
+			break
+			
+		else
+		
+			# Interface not started properly or server could not be
+			# reached
+			bringWireGuardDownAndForceDnsUpdate "${pInterfaceName}" "${pServerEndpointAddress}"
+			
+			# Wait 1 second and then try again
+			sleep 1
+			
+		fi
+
+	done
+	
+	return "${errorStatus}"
+	
+}
+# end of ::bringWireGuardInterfaceDownThenUp
+##--------------------------------------------------------------------------------------------------
+
+EOF
+)
+
+	echo "${text}"
+	
+}
+# end of ::generateScriptContentBringWireGuardInterfaceDownThenUpFunctionForDevicesUsingTraditionalifupdown
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentBringWireGuardInterfaceDownThenUpFunctionForDevicesUsingNetplan
+# 
+# Generates and echos the text for a function that is capable of bringing WireGuard interface down
+# and then back up again on a device using the Netplan network management tools. The generated text 
+# can be put in a bash script file.
+#
+# Return:
+#
+# On return, the generated texts are echoed.
+#
+
+generateScriptContentBringWireGuardInterfaceDownThenUpFunctionForDevicesUsingNetplan() {
+
+	local text=$(cat << 'EOF'
+##--------------------------------------------------------------------------------------------------
+# ::bringWireGuardDownAndForceDnsUpdate
+#
+
+bringWireGuardDownAndForceDnsUpdate() {
+
+	local pInterfaceName=$1
+	local pServerEndpointAddress=$2
+
+	# Bring the interface down
+	sudo wg-quick down ${pInterfaceName}
+	
+	# Get the address info of the VPN server endpoint. If 
+	# this is a domain name, this typically causes the DNS
+	# cache on this device to be updated. Useful for Dynamic
+	# DNS setups
+	resolvedIpAddress=$(sudo getent ahosts "${pServerEndpointAddress}" | grep "STREAM" | awk '{ print $1 }')
+	
+}
+# end of ::bringWireGuardDownAndForceDnsUpdate
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::bringWireGuardInterfaceDownThenUp
+#
+
+bringWireGuardInterfaceDownThenUp() {
+
+	local pInterfaceName=$1
+	local pServerEndpointAddress=$2
+	local pServerIpOnVpn=$3
+
+	bringWireGuardDownAndForceDnsUpdate "${pInterfaceName}" "${pServerEndpointAddress}"
+	
+	# Attempt to bring up interface and ping server 10 times
+	local errorStatus=1
+	for (( i=0; i<=10; i++ )); do
+
+		sudo wg-quick up ${pInterfaceName}
+		echo ""
+		echo "wg-quick up attempt #${i}"
+
+		if sudo wg show ${pInterfaceName} 2>/dev/null | grep -q 'public key' && attemptServerPing "${pServerIpOnVpn}"; then
+		
+			# If the wg show command properly presented the interface
+			# and the server can be pinged on the VPN, consider it a
+			# success
+			errorStatus=0
+			break
+			
+		else
+		
+			# Interface not started properly or server could not be
+			# reached
+			bringWireGuardDownAndForceDnsUpdate "${pInterfaceName}" "${pServerEndpointAddress}"
+			
+			# Wait 1 second and then try again
+			sleep 1
+			
+		fi
+
+	done
+	
+	return "${errorStatus}"
+	
+}
+# end of ::bringWireGuardInterfaceDownThenUp
+##--------------------------------------------------------------------------------------------------
+
+EOF
+)
+
+	echo "${text}"
+	
+}
+# end of ::generateScriptContentBringWireGuardInterfaceDownThenUpFunctionForDevicesUsingNetplan
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentAddAndRemoveCronJobFunctions
+# 
+# Generates functions for adding and removing cron jobs and echos them as a string.
+#
+# This function is useful when generating other bash scripts.
+#
+# Example usage:
+#
+# 	cronJobFunctions=$(generateCronJobFunctionsForScripts)
+#
+# Return:
+#
+# On return, the generated texts are echoed.
+#
+
+generateScriptContentAddAndRemoveCronJobFunctions() {
+	
+	local header="##--------------------------------------------------------------------------------------------------"
+	local colons="::"
+	
+	local output=$(cat << EOF
+${header}
+# ${colons}addCronJob
+# 
+# Adds a cron job to root's crontab.
+#
+# Example usage: 
+#
+#	Run the cron job at 2:00 AM:
+#
+#		addCronJob "0 2 * * *" "/path/to/your-script.sh"
+#
+# 	Run the cron job every 15 minutes:
+#
+#		addCronJob "*/15 * * * *" "/path/to/your-script.sh"
+#
+# Cron schedule format:
+#
+# 	* * * * * 
+# 	| | | | | 
+# 	| | | | +---- Day of the week (0 - 7) (Sunday is both 0 and 7)
+# 	| | | +------ Month (1 - 12)
+# 	| | +-------- Day of the month (1 - 31)
+# 	| +---------- Hour (0 - 23)
+# 	+------------ Minute (0 - 59)
+#
+# Parameters:
+#
+# \$1	Cron schedule.
+# \$2	Absolute file path to script.
+#
+
+addCronJob() {
+
+    local pCronSchedule="\$1"
+    local pScriptPath="\$2"
+	
+    local newCronJob="\${pCronSchedule} \${pScriptPath}"
+
+    # Temporary file to hold the current crontab
+    local cronTempFile
+    cronTempFile=\$(mktemp)
+
+    # Save the current crontab to a temporary file
+    sudo crontab -l > "\${cronTempFile}" 2>/dev/null
+
+    # Check if the cron job already exists
+    if ! grep -Fxq "\${newCronJob}" "\${cronTempFile}"; then
+	
+        # Add the new cron job to the temporary file
+		echo "" >> "\${cronTempFile}"
+        echo "\${newCronJob}" >> "\${cronTempFile}"
+
+        # Install the new crontab from the temporary file
+        sudo crontab "\${cronTempFile}"
+
+        echo "New cron job added: \${newCronJob}"
+		
+    else
+	
+        echo "Cron job already exists: \${newCronJob}"
+		
+    fi
+
+    # Clean up the temporary file
+    rm "\${cronTempFile}"
+	
+}
+# end of ${colons}addCronJob
+${header}
+
+${header}
+# ${colons}removeCronJob
+# 
+# Removes the specified cron job from root's crontab if it exists.
+#
+# Example usage:
+#
+#	removeCronJob "0 2 * * *" "/path/to/your-script.sh"
+#
+#	removeCronJob "*/15 * * * *" "/path/to/your-script.sh >/dev/null 2>&1"
+#
+# Parameters:
+#
+# \$1	Cron schedule to remove.
+# \$2	Absolute file path to script.
+#
+
+removeCronJob() {
+
+    local pCronSchedule="\$1"
+    local pScriptPath="\$2"
+	
+    local cronJobToRemove="\${pCronSchedule} \${pScriptPath}"
+
+    # Temporary file to hold the current crontab
+    local cronTempFile
+    cronTempFile=\$(mktemp)
+
+    # Save the current crontab to a temporary file
+    sudo crontab -l > "\${cronTempFile}" 2>/dev/null
+
+    # Check if the cron job exists
+    if grep -Fxq "\${cronJobToRemove}" "\${cronTempFile}"; then
+	
+        # Remove the cron job from the temporary file
+        grep -Fxv "\${cronJobToRemove}" "\${cronTempFile}" > "\${cronTempFile}.tmp" && mv "\${cronTempFile}.tmp" "\${cronTempFile}"
+
+        # Install the new crontab from the temporary file
+        sudo crontab "\${cronTempFile}"
+
+        echo "Cron job removed: \${cronJobToRemove}"
+		
+    else
+	
+        echo "Cron job not found: \${cronJobToRemove}"
+		
+    fi
+
+    # Clean up the temporary file
+    rm "\${cronTempFile}"
+	
+}
+# end of ${colons}removeCronJob
+${header}
+
+EOF
+)
+
+	echo "${output}"
+}
+# end of ::generateScriptContentAddAndRemoveCronJobFunctions
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentExitProgramFunction
+# 
+# Generates a functions for exiting the program and echos it as a string.
+#
+# This function is useful when generating other bash scripts.
+#
+# Return:
+#
+# On return, the generated texts are echoed.
+#
+
+generateScriptContentExitProgramFunction() {
+	
+	local output=$(cat << 'EOF'
+##--------------------------------------------------------------------------------------------------
+# ::exitProgram
+# 
+# Exits the program.
+#
+# Parameters:
+#
+# $1	Header message.
+# $2	Message.
+# $3 	Background color.
+# $4	Exit status.
+#
+
+exitProgram() {
+
+	local pHeaderMsg="${1}"
+	local pMsg="${2}"
+	local pBackgroundColor="${3}"
+	local pExitStatus="${4}"
+	
+	local resetColors="\033[0m"
+
+	output=""
+	output+="\n"
+	output+="\n"
+	output+="${pBackgroundColor}"
+	output+="\n"
+	output+="	!! ${pHeaderMsg} !! start"
+	output+="${resetColors}"
+	output+="\n"
+	output+="\n"
+	output+="\n	${pMsg}"
+	output+="\n"
+	output+="\n"
+	output+="${pBackgroundColor}"
+	output+="\n"
+	output+="	!! ${pHeaderMsg} !! end"
+	output+="${resetColors}"
+	output+="\n"
+	output+="\n"
+
+	printf "${output}"
+
+	exit "${pExitStatus}"
+
+}
+# end of ::exitProgram
+##--------------------------------------------------------------------------------------------------
+
+EOF
+)
+
+	echo "${output}"
+}
+# end of ::generateScriptContentExitProgramFunction
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentCronjobHeaderComments
+# 
+# Generates and echos the comments for the wg-skoonie cronjob script header.
+#
+# Return:
+#
+# On return, the generated texts are echoed.
+#
+
+generateScriptContentCronjobHeaderComments() {
+	
+	local text=$(cat << 'EOF'
+	
+##--------------------------------------------------------------------------------------------------
+##-------------------------------------------------------------------------------------------------- 
+#
+# This cron job script was generated as part of the WireGuard Skoonie Wrapper (wg-skoonie).
+#
+# This script verifies that the device it is ran on is connected to the WireGuard VPN. 
+#
+# To check if the device is connected to the WireGuard VPN, it attempts to ping the server's IP 
+# address on the VPN subnet. 
+#
+# If the server cannot be reached, the WireGuard interface is brought down and then back up. This 
+# is primarily done to force a DNS lookup in case a domain name was used as the server's endpoint. 
+# WireGuard only performs a DNS lookup when the interface is brought up. If Dynamic DNS is being 
+# used, a change in IP address will not be detected until WireGuard is brought down and back up 
+# again.
+#
+# By default, this cron job script is set to be ran every 15 minutes.
+#
+
+EOF
+)
+
+	echo "${text}"
+	
+}
+# end of ::generateScriptContentCronjobHeaderComments
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentCronjobMainCode
+# 
+# Generates and echos the text for the wg-skoonie cron job script's main code.
+#
+# Return:
+#
+# On return, the generated texts are echoed.
+#
+
+generateScriptContentCronjobMainCode() {
+	
+	local text=$(cat << 'EOF'
+	
+resolvedIpAddress=""
+
+logMsg=""
+
+# If the server cannot be reached, bring the WireGuard interface down then back up
+if ! attemptServerPing "${SERVER_IP_ON_VPN}"; then
+	
+	logMsg+="Issues reported at ${CURRENT_DATETIME}"
+	logMsg+="\n"
+	logMsg+="	Server ping on VPN at ${SERVER_IP_ON_VPN} failed."
+	
+	if bringWireGuardInterfaceDownThenUp "${INTERFACE_NAME}" "${SERVER_ENDPOINT_ADDRESS}" "${SERVER_IP_ON_VPN}"; then
+		
+		# Log success
+		logMsg+="\n"
+		logMsg+="	Reconnected to server at endpoint ${resolvedIpAddress}."
+		logMsg+="\n"
+		logMsg+="	Server ping on VPN at ${SERVER_IP_ON_VPN} success."
+	
+	else
+	
+		# Log failure
+		logMsg+="\n"
+		logMsg+="	Could not reconnect to server at endpoint ${resolvedIpAddress}."
+		
+	fi
+	
+fi
+
+# If there is a log message, write it to file
+if [ ! -z "${logMsg}" ]; then
+	echo -e "${logMsg}" >> "${LOG_FILEPATH}"
+fi
+
+EOF
+)
+
+	echo "${text}"
+	
+}
+# end of ::generateScriptContentCronjobMainCode
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentCronjobVariablesWithValuesInjectedFromMainScript
+# 
+# Generates and echos the text for declaring variables whose values come from this main script.
+#
+# This is done separately so that 'EOF' is not used and the generated text will replace variables
+# references with variables from this script.
+#
+# Return:
+#
+# On return, the generated texts are echoed.
+#
+# Parameters:
+#
+# $1	Reference to associative array key-value pair for network values.
+#
+
+generateScriptContentCronjobVariablesWithValuesInjectedFromMainScript() {
+	
+	local -n pNetworkValues2333=$1
+	
+	local text=$(cat << EOF
+	
+# WireGuard VPN Interface name
+readonly INTERFACE_NAME="${pNetworkValues2333["KEY_INTERFACE_NAME"]}"
+
+# Server IP address on VPN subnet
+readonly SERVER_IP_ON_VPN="${pNetworkValues2333["KEY_SERVER_IP_ADDRESS_ON_VPN"]}"
+
+# WireGuard server endpoint address. IP address or domain name.
+readonly SERVER_ENDPOINT_ADDRESS="${pNetworkValues2333["KEY_SERVER_ENDPOINT"]%%:*}"
+
+EOF
+)
+
+	echo "${text}"
+	
+}
+# end of ::generateScriptContentCronjobVariablesWithValuesInjectedFromMainScript
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentCronjobVariablesWithoutValuesInjectedFromMainScript
+# 
+# Generates and echos the text for declaring variables whose values do NOT come from this main script.
+#
+# This is done separately so that 'EOF' can be used and the generated text will NOT replace variables
+# references with variables from this script.
+#
+# Return:
+#
+# On return, the generated texts are echoed.
+#
+
+generateScriptContentCronjobVariablesWithoutValuesInjectedFromMainScript() {
+	
+	local text=$(cat << 'EOF'
+	
+# Script File Path
+readonly SCRIPT_FILEPATH="${BASH_SOURCE[0]}"
+
+# Script Name
+readonly SCRIPT_NAME=$(basename "${SCRIPT_FILEPATH}" .sh)
+
+# Script Directory
+readonly SCRIPT_DIR=$(dirname "${SCRIPT_FILEPATH}")
+
+# Log filename
+readonly LOG_FILENAME="${SCRIPT_NAME}.log"
+
+# Log filepath
+readonly LOG_FILEPATH="${SCRIPT_DIR}/${LOG_FILENAME}"
+
+readonly CURRENT_DATETIME=$(date +"%Y-%m-%d %H:%M:%S")
+
+EOF
+)
+
+	echo "${text}"
+	
+}
+# end of ::generateScriptContentCronjobVariablesWithoutValuesInjectedFromMainScript
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
