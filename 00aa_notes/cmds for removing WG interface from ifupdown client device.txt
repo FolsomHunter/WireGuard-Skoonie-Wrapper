@@ -1,7 +1,67 @@
 
 These series of commands are useful when removing a WireGuard interface from a client device:
 
+##--------------------------------------------------------------------------------------------------
+# ::removeCronJob
+# 
+# Removes the specified cron job from root's crontab if it exists.
+#
+# Example usage:
+#
+#	removeCronJob "0 2 * * *" "/path/to/your-script.sh"
+#
+#	removeCronJob "*/15 * * * *" "/path/to/your-script.sh >/dev/null 2>&1"
+#
+# Parameters:
+#
+# $1	Cron schedule to remove.
+# $2	Absolute file path to script.
+#
+
+removeCronJob() {
+
+    local pCronSchedule="$1"
+    local pScriptPath="$2"
+	
+    local cronJobToRemove="${pCronSchedule} ${pScriptPath}"
+
+    # Temporary file to hold the current crontab
+    local cronTempFile
+    cronTempFile=$(mktemp)
+
+    # Save the current crontab to a temporary file
+    sudo crontab -l > "${cronTempFile}" 2>/dev/null
+
+    # Check if the cron job exists
+    if grep -Fxq "${cronJobToRemove}" "${cronTempFile}"; then
+	
+        # Remove the cron job from the temporary file
+        grep -Fxv "${cronJobToRemove}" "${cronTempFile}" > "${cronTempFile}.tmp" && mv "${cronTempFile}.tmp" "${cronTempFile}"
+
+        # Install the new crontab from the temporary file
+        sudo crontab "${cronTempFile}"
+
+        echo "Cron job removed: ${cronJobToRemove}"
+		
+    else
+	
+        echo "Cron job not found: ${cronJobToRemove}"
+		
+    fi
+
+    # Clean up the temporary file
+    rm "${cronTempFile}"
+	
+}
+# end of ::removeCronJob
+##--------------------------------------------------------------------------------------------------
+
 INTERFACE_NAME="[Name]";
+CRONJOB_SCRIPT_FILEPATH="/etc/cron.wg-skoonie/wg-skoonie-cronjob-${INTERFACE_NAME}.sh";
+CRONJOB_LOG_FILEPATH="/etc/cron.wg-skoonie/wg-skoonie-cronjob-${INTERFACE_NAME}.log";
+removeCronJob "*/15 * * * *" "${CRONJOB_SCRIPT_FILEPATH} >/dev/null 2>&1"
+sudo rm "${CRONJOB_SCRIPT_FILEPATH}";
+sudo rm "${CRONJOB_LOG_FILEPATH}";
 sudo ifdown ${INTERFACE_NAME};
 sudo ip link set ${INTERFACE_NAME} down;
 sudo ip link delete dev ${INTERFACE_NAME};
