@@ -27,7 +27,7 @@
 # ::Global Variables
 
 readonly PROGRAM_NAME="WireGuard Skoonie Wrapper"
-readonly VERSION_NUMBER="1.1.1-dev"
+readonly VERSION_NUMBER="1.1.1"
 
 readonly SCRIPT_DIR=$(dirname "$(realpath "$0")")
 
