@@ -260,6 +260,9 @@ addDeviceSpecIp() {
 	
 	local -A networkValues
 	
+	networkValues["KEY_INTERFACE_NAME"]="${pInterfaceName}"
+	networkValues["KEY_INTERFACE_INI_FILE_ABS_PATH"]="${interfaceSkoonieIniFilePath}"
+	
 	# Read existing devices on this interface from file
 	readInterfaceIniFile "$interfaceSkoonieIniFilePath" networkValues
 	
@@ -304,9 +307,7 @@ addDeviceSpecIp() {
 		return 1
 	fi
 	
-	addDeviceToSkoonieIniFileAndGenerateClientConfigruationFile networkValues
-	
-	generateNewDeviceSetUpScriptForLinux networkValues
+	addDeviceToSkoonieFilesAndGenerateConfigFilesAndSetupScripts networkValues
 	
 	logDeviceAddedSuccessfullyMessage networkValues
 	
