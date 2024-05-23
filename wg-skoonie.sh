@@ -3397,7 +3397,7 @@ outputHelp() {
 	msg+="\n"
 	msg+="\n"
 	msg+="${yellowFontColor}"
-	msg+="showAllInterfacesSkoonie [Interface Name]"
+	msg+="showAllInterfacesSkoonie"
 	msg+="${resetColors}"
 	msg+="\n"
 	msg+="\n"

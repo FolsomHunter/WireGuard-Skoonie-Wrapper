@@ -157,7 +157,7 @@ Example usage:
 
 ..................
 
-**`showAllInterfacesSkoonie [Interface Name]`**
+**`showAllInterfacesSkoonie`**
 
 Lists all of the interfaces and the network details saved by wg-skoonie.
 
