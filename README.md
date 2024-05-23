@@ -1,6 +1,8 @@
 
 # WireGuard Skoonie Wrapper
 
+![wg-skoonie ~ WireGuard Made Easy](https://github.com/FolsomHunter/WireGuard-Skoonie-Wrapper/blob/master/logos/wg-skoonie-logo-github-V1-2.png?raw=true)
+
 This program serves as a wrapper for WireGuard. 
 
 It is intended to assist those managing multiple devices across multiple VPNs. New interfaces (VPNs) can be easily created and devices can be easily added to allow for simplified management and tracking of several deployed networks. Multiple interfaces/VPNs can be ran and active at the same time on the same server. For example, this program allows a company to easily segregate devices deployed in the field by keeping each client's devices in their own VPN. 
