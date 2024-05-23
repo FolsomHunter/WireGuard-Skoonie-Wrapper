@@ -21,9 +21,7 @@ To install the bash script / program:
 
 To run the program:
 
-`cd /path/to/directory`
-
-`sudo ./wg-skoonie.sh`
+`sudo /path/to/directory/wg-skoonie.sh`
 
 Before using **wg-skoonie**, WireGuard should already be installed and ufw should already be enabled:
 
