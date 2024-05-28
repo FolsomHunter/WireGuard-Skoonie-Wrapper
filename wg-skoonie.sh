@@ -1489,8 +1489,11 @@ if ! command -v wg >/dev/null 2>&1; then
 	headerMessage="ERROR"
 	
 	msg+="An installation of WireGuard cannot be found on this system."
+	msg+="\n"
+	msg+="\n"
+	msg+="	Try using \"sudo apt install wireguard\"."
 	
-	exitProgram
+	exitProgram "\${headerMessage}" "\${msg}" "\${backgroundColor}" "\${exitStatus}"
 
 fi
 
@@ -1582,7 +1585,7 @@ then
 	msg+="\n"
 	msg+="	Please see above for details."
 	
-	exitProgram
+	exitProgram "\${headerMessage}" "\${msg}" "\${backgroundColor}" "\${exitStatus}"
 
 else
 
@@ -1658,7 +1661,7 @@ else
 	msg+="\n"
 	msg+="	This setup script file can now be deleted from the system."
 	
-	exitProgram
+	exitProgram "\${headerMessage}" "\${msg}" "\${backgroundColor}" "\${exitStatus}"
 
 fi
 EOF
