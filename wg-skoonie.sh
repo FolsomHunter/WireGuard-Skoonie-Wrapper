@@ -27,7 +27,7 @@
 # ::Global Variables
 
 readonly PROGRAM_NAME="WireGuard Skoonie Wrapper"
-readonly VERSION_NUMBER="1.2.0-dev"
+readonly VERSION_NUMBER="1.2.0-dev10"
 
 readonly SCRIPT_DIR=$(dirname "$(realpath "$0")")
 
@@ -1002,77 +1002,35 @@ generateNewDeviceConfigFileAndSetupScriptForUbuntuGreaterThanOrEqualToV17_10() {
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
-# ::generateNewDeviceConfigFileForTraditionalifupdown
+# ::generateNewDeviceSetupScript
 # 
-# Generates a client configuration file for when the new device is using the traditional ifupdown
-# network management tools.
+# Generates a linux setup script for the new device.
 #
-# The configuration file the traditional ipdownup network management tools cannot contain the 
-# Address key-value pair for the device (e.g., "Address = 10.8.0.3/24"). Having the Address key-value
-# pair causes an error to be logged when executing command  `sudo ifup [Interface Name]` saying that:
-#		Line unrecognized: `Address=10.8.0.3/24'
-#
-# Parameters:
-#
-# $1	File path to save configuration file to.
-# $2	Reference to associative array key-value pair for network values.
-#
-# Return:
-#
-# On return, the configuration file will be saved to pFilePath.
-#
-
-generateNewDeviceConfigFileForTraditionalifupdown() {
-
-	local pFilePath=$1
-	local -n pNetworkValues864=$2
-	
-	cat > "${pFilePath}" <<EOF
-[Interface]
-PrivateKey = ${pNetworkValues864["KEY_NEW_DEVICE_PRIVATE_KEY"]}
-
-[Peer]
-PublicKey = ${pNetworkValues864["KEY_SERVER_PUBLIC_KEY"]}
-Endpoint = ${pNetworkValues864["KEY_SERVER_ENDPOINT"]}
-AllowedIPs = ${pNetworkValues864["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}/${pNetworkValues864["KEY_SUBNET_MASK_CIDR_NOTATION"]}
-PersistentKeepalive = 25
-EOF
-
-}
-# end of ::generateNewDeviceConfigFileForTraditionalifupdown
-##--------------------------------------------------------------------------------------------------
-
-##--------------------------------------------------------------------------------------------------
-# ::generateNewDeviceSetupScriptForTraditionalifupdown
-# 
-# Generates a linux setup script for when the new device is using the traditional ifupdown network
-# management tools.
-#
-# The `sudo wg-quick up [Interface Name]` command does not properly set up the interface and does
-# not create the necessary files in /etc/network/interfaces.d/
-#
-# In place of the `sudo wg-quick up [Interface Name]` command, the command `sudo ifup [Interface Name]`
-# is used. The `sudo wg-quick down [Interface Name]` is used along with  `sudo ifdown [Interface Name]`
-# when performing multiple start attempts to ensure the wireguard interface is properly brought down.
-#
-# Upon return, the setup script file will be saved to the file path in:
-#
-# 	pNetworkValues["KEY_NEW_DEVICE_CLIENT_RASPBIAN_SETUP_SCRIPT_FILE_ABS_PATH"]
+# The appropriate interface intitialization sequence nad commands should be passed in via 
+# pScriptContentForConfiguringWireGuardInterface, pBringWireGuardInterfaceUpCommand, and 
+# pBringWireGuardInterfaceDownCommand.
 #
 # Parameters:
 #
 # $1	File path to save script file to.
 # $2	Reference to associative array key-value pair for network values.
+# $3	Script content for configuring WireGuard interface (OS specific).
+# $4	OS-specific command to bring up WireGuard interface after configuration.
+# $5	OS-specific command to bring down WireGuard interface after it is brought up (used 
+#			multiple interface start attempts).
 #
 # Return:
 #
 # On return, the setup script file will be saved to pFilePath.
 #
 
-generateNewDeviceSetupScriptForTraditionalifupdown() {
+generateNewDeviceSetupScript() {
 
 	local pFilePath=$1
     local -n pNetworkValues907=$2
+	local pScriptContentForConfiguringWireGuardInterface=$3
+	local pBringWireGuardInterfaceUpCommand=$4
+	local pBringWireGuardInterfaceDownCommand=$5
 	
 	local exitFunction=$(generateScriptContentExitProgramFunction)
 	local cronJobFunctions=$(generateScriptContentAddAndRemoveCronJobFunctions)
@@ -1083,7 +1041,6 @@ generateNewDeviceSetupScriptForTraditionalifupdown() {
 readonly WG_INTERFACES_FOLDER_PATH="${WG_INTERFACES_FOLDER_PATH}"
 readonly INTERFACE_NAME="${pNetworkValues907["KEY_INTERFACE_NAME"]}"
 readonly INTERFACE_CONFIG_FILENAME="\${INTERFACE_NAME}.conf"
-readonly NETWORK_INTERFACE_CONFIG_FILE_ABS_PATH="/etc/network/interfaces.d/\${INTERFACE_NAME}"
 
 readonly INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME="wg-skoonie-cronjob-\${INTERFACE_NAME}.sh"
 readonly WG_SKOONIE_CRONJOBS_FOLDER_PATH="/etc/cron.wg-skoonie"
@@ -1126,47 +1083,19 @@ if [[ ! -d "\${WG_INTERFACES_FOLDER_PATH}" ]]; then
 	echo ""
     echo "WireGuard interfaces folder path does not already exist. Creating now:"
 	echo ""
-	echo "	\${yellowFontColor}\${WG_INTERFACES_FOLDER_PATH}\${resetColors}"
+	echo "	\${WG_INTERFACES_FOLDER_PATH}"
 	echo ""
 	sudo mkdir -p "\${WG_INTERFACES_FOLDER_PATH}"
 fi
 
 echo ""
 echo "Moving configuration file to WireGuard interfaces folder."
-echo "	from 	\${yellowFontColor}\${INTERFACE_CONFIG_FILENAME}\${resetColors}"
-echo "	to 	\${yellowFontColor}\${WG_INTERFACES_FOLDER_PATH}\${resetColors}"
+echo "	from 	\${INTERFACE_CONFIG_FILENAME}"
+echo "	to 	\${WG_INTERFACES_FOLDER_PATH}"
 
 sudo mv -iv "\${INTERFACE_CONFIG_FILENAME}" "\${WG_INTERFACES_FOLDER_PATH}"
 
-echo ""
-echo "Enabling interface to start on boot."
-
-
-# Create network interface configuration file for traditional ifupdown
-
-cat > "\${NETWORK_INTERFACE_CONFIG_FILE_ABS_PATH}" <<EOFE
-
-# indicate that interface should be created when the system boots, and on ifup -a
-auto \${INTERFACE_NAME}
-
-# describe wg0 as an IPv4 interface with static address
-iface \${INTERFACE_NAME} inet static
-
-		# the IP address of this client on the WireGuard network
-        address ${pNetworkValues907["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}/${pNetworkValues907["KEY_SUBNET_MASK_CIDR_NOTATION"]}
-
-        # before ifup, create the device with this ip link command
-        pre-up ip link add \${INTERFACE_NAME} type wireguard
-
-        # before ifup, set the WireGuard config from earlier
-        pre-up wg setconf \${INTERFACE_NAME} \${WG_INTERFACES_FOLDER_PATH}/\${INTERFACE_NAME}.conf
-
-        # after ifdown, destroy the wg0 interface
-        post-down ip link del \${INTERFACE_NAME}
-
-EOFE
-
-# end of Create network interface configuration file for traditional ifupdown
+${pScriptContentForConfiguringWireGuardInterface}
 
 # Set up cronjob connectivity checker script
 
@@ -1187,7 +1116,7 @@ sudo chmod +x "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTI
 
 echo ""
 echo "Adding cronjob to root's crontab to call wg-skoonie connectivity checker every 15 minutes."
-echo "	*/15 * * * * \${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME} >/dev/null 2>&1\${resetColors}"
+echo "	*/15 * * * * \${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME} >/dev/null 2>&1"
 
 addCronJob "*/15 * * * *" "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME} >/dev/null 2>&1"
 
@@ -1199,16 +1128,15 @@ echo "Starting interface now...."
 errorStatus=1
 for (( i=0; i<=10; i++ )); do
 	
-	sudo ifup \${INTERFACE_NAME}
+	echo "VPN start attempt #\${i}"
 	echo ""
-	echo "ifup attempt #\${i}"
+${pBringWireGuardInterfaceUpCommand}
 
 	if sudo wg show \${INTERFACE_NAME} 2>/dev/null | grep -q 'public key'; then
 		errorStatus=0
 		break
 	else
-		sudo wg-quick down \${INTERFACE_NAME}
-		sudo ifdown \${INTERFACE_NAME}
+${pBringWireGuardInterfaceDownCommand}
 		sleep 1
 	fi
 	
@@ -1315,6 +1243,81 @@ else
 
 fi
 EOF
+
+}
+# end of ::generateNewDeviceSetupScript
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateNewDeviceConfigFileForTraditionalifupdown
+# 
+# Generates a client configuration file for when the new device is using the traditional ifupdown
+# network management tools.
+#
+# The configuration file the traditional ipdownup network management tools cannot contain the 
+# Address key-value pair for the device (e.g., "Address = 10.8.0.3/24"). Having the Address key-value
+# pair causes an error to be logged when executing command  `sudo ifup [Interface Name]` saying that:
+#		Line unrecognized: `Address=10.8.0.3/24'
+#
+# Parameters:
+#
+# $1	File path to save configuration file to.
+# $2	Reference to associative array key-value pair for network values.
+#
+# Return:
+#
+# On return, the configuration file will be saved to pFilePath.
+#
+
+generateNewDeviceConfigFileForTraditionalifupdown() {
+
+	local pFilePath=$1
+	local -n pNetworkValues864=$2
+	
+	cat > "${pFilePath}" <<EOF
+[Interface]
+PrivateKey = ${pNetworkValues864["KEY_NEW_DEVICE_PRIVATE_KEY"]}
+
+[Peer]
+PublicKey = ${pNetworkValues864["KEY_SERVER_PUBLIC_KEY"]}
+Endpoint = ${pNetworkValues864["KEY_SERVER_ENDPOINT"]}
+AllowedIPs = ${pNetworkValues864["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}/${pNetworkValues864["KEY_SUBNET_MASK_CIDR_NOTATION"]}
+PersistentKeepalive = 25
+EOF
+
+}
+# end of ::generateNewDeviceConfigFileForTraditionalifupdown
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateNewDeviceSetupScriptForTraditionalifupdown
+# 
+# Generates a linux setup script for when the new device is using the new traditional ifupdown 
+# network management tools.
+#
+# Parameters:
+#
+# $1	File path to save script file to.
+# $2	Reference to associative array key-value pair for network values.
+#
+# Return:
+#
+# On return, the setup script file will be saved to pFilePath.
+#
+
+generateNewDeviceSetupScriptForTraditionalifupdown() {
+
+	local pFilePath=$1
+    local -n pNetworkValues1311=$2
+	
+	local exitFunction=$(generateScriptContentExitProgramFunction)
+	local cronJobFunctions=$(generateScriptContentAddAndRemoveCronJobFunctions)
+	
+	local scriptContentForConfiguringWireGuardInterface=$(generateScriptContentForTraditionalifupdownToConfigureWireGuardInterface pNetworkValues1311)
+	local bringWireGuardInterfaceUpCommand=$(generateScriptContentForTraditionalifupdownToBringWireGuardInterfaceUp)
+	local bringWireGuardInterfaceDownCommand=$(generateScriptContentForTraditionalifupdownToBringWireGuardInterfaceDown)
+	
+	generateNewDeviceSetupScript "${pFilePath}" pNetworkValues1311 "${scriptContentForConfiguringWireGuardInterface}" "${bringWireGuardInterfaceUpCommand}" "${bringWireGuardInterfaceDownCommand}"
 
 }
 # end of ::generateNewDeviceSetupScriptForTraditionalifupdown
@@ -1432,8 +1435,6 @@ EOF
 # Generates a linux setup script for when the new device is using the new Netplan network management
 # tools.
 #
-# The `sudo wg-quick up [Interface Name]` command can be used to initialize the interface.
-#
 # Parameters:
 #
 # $1	File path to save script file to.
@@ -1452,219 +1453,11 @@ generateNewDeviceSetupScriptForNetplan() {
 	local exitFunction=$(generateScriptContentExitProgramFunction)
 	local cronJobFunctions=$(generateScriptContentAddAndRemoveCronJobFunctions)
 	
-	cat > "${pFilePath}" <<EOF
-#!/bin/bash
-
-readonly WG_INTERFACES_FOLDER_PATH="${WG_INTERFACES_FOLDER_PATH}"
-readonly INTERFACE_NAME="${pNetworkValues1268["KEY_INTERFACE_NAME"]}"
-readonly INTERFACE_CONFIG_FILENAME="\${INTERFACE_NAME}.conf"
-readonly NETWORK_INTERFACE_CONFIG_FILE_ABS_PATH="/etc/network/interfaces.d/\${INTERFACE_NAME}"
-
-readonly INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME="wg-skoonie-cronjob-\${INTERFACE_NAME}.sh"
-readonly WG_SKOONIE_CRONJOBS_FOLDER_PATH="/etc/cron.wg-skoonie"
-
-greenBackground="\033[30;42m"
-redBackground="\033[41m"
-yellowFontColor="\033[33m"
-resetColors="\033[0m"
-
-exitStatus=0
-backgroundColor=""
-headerMessage=""
-msg=""
-
-${exitFunction}
-
-${cronJobFunctions}
-
-# Check if wireguard is installed
-if ! command -v wg >/dev/null 2>&1; then
-
-	# Error
+	local scriptContentForConfiguringWireGuardInterface=$(generateScriptContentForNetplanToConfigureWireGuardInterface pNetworkValues1268)
+	local bringWireGuardInterfaceUpCommand=$(generateScriptContentForNetplanToBringWireGuardInterfaceUp)
+	local bringWireGuardInterfaceDownCommand=$(generateScriptContentForNetplanToBringWireGuardInterfaceDown)
 	
-	exitStatus="1"
-	
-	backgroundColor="\${redBackground}"
-	
-	headerMessage="ERROR"
-	
-	msg+="An installation of WireGuard cannot be found on this system."
-	msg+="\n"
-	msg+="\n"
-	msg+="	Try using \"sudo apt install wireguard\"."
-	
-	exitProgram "\${headerMessage}" "\${msg}" "\${backgroundColor}" "\${exitStatus}"
-
-fi
-
-if [[ ! -d "\${WG_INTERFACES_FOLDER_PATH}" ]]; then
-	echo ""
-    echo "WireGuard interfaces folder path does not already exist. Creating now:"
-	echo ""
-	echo "	\${yellowFontColor}\${WG_INTERFACES_FOLDER_PATH}\${resetColors}"
-	echo ""
-	sudo mkdir -p "\${WG_INTERFACES_FOLDER_PATH}"
-fi
-
-echo ""
-echo "Moving configuration file to WireGuard interfaces folder."
-echo "	from 	\${INTERFACE_CONFIG_FILENAME}"
-echo "	to 	\${WG_INTERFACES_FOLDER_PATH}"
-
-sudo mv -iv "\${INTERFACE_CONFIG_FILENAME}" "\${WG_INTERFACES_FOLDER_PATH}"
-
-# Set up cronjob connectivity checker script
-
-echo ""
-echo "Moving wg-skoonie cronjob script for verifying connectivity to VPN."
-echo "	from 	\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}"
-echo "	to 	\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}"
-
-sudo mkdir -p "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}"
-
-sudo mv -iv "\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}" "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}"
-
-# Change ownership to root for additional security
-sudo chown root:root "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}"
-
-# Make file executable
-sudo chmod +x "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME}"
-
-echo ""
-echo "Adding cronjob to root's crontab to call wg-skoonie connectivity checker every 15 minutes."
-echo "	\${yellowFontColor}\*/15 * * * * \${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME} >/dev/null 2>&1\${resetColors}"
-generateCronJobFunctionsForScripts
-addCronJob "*/15 * * * *" "\${WG_SKOONIE_CRONJOBS_FOLDER_PATH}/\${INTERFACE_CRONJOB_CONNECTIVITY_CHECKER_FILENAME} >/dev/null 2>&1"
-
-# end of Set up cronjob connectivity checker script
-
-echo ""
-echo "Enabling interface to start on boot."
-
-# Enable wireguard interface to start on boot
-sudo systemctl enable wg-quick@\${INTERFACE_NAME}.service
-
-echo ""
-echo "Starting interface now...."
-
-errorStatus=1
-for (( i=0; i<=10; i++ )); do
-	
-	sudo wg-quick up \${INTERFACE_NAME}
-	echo ""
-	echo "wg-quick up attempt #\${i}"
-
-	if sudo wg show \${INTERFACE_NAME} 2>/dev/null | grep -q 'public key'; then
-		errorStatus=0
-		break
-	else
-		sudo wg-quick down \${INTERFACE_NAME}
-		sleep 1
-	fi
-	
-done
-
-exitStatus=0
-backgroundColor=""
-headerMessage=""
-msg=""
-
-if [[ "\${errorStatus}" -ne 0 ]]
-then
-
-	# Error
-	
-	exitStatus="1"
-	
-	backgroundColor="\${redBackground}"
-	
-	headerMessage="ERROR"
-	
-	msg+="Failed to start interface '\${INTERFACE_NAME}'."
-	msg+="\n"
-	msg+="\n"
-	msg+="	Please see above for details."
-	
-	exitProgram "\${headerMessage}" "\${msg}" "\${backgroundColor}" "\${exitStatus}"
-
-else
-
-	#SUCCESS
-	
-	exitStatus="0"
-	
-	backgroundColor="\${greenBackground}"
-	
-	headerMessage="SUCCESS"
-	
-	msg+="Interface '\${INTERFACE_NAME}' was added and started successfully."
-	msg+="\n"
-	msg+="\n"
-	msg+="	Please see above for details."
-	msg+="\n"
-	msg+="\n"
-	msg+="	The following command can now be used at any time to verify that the interface is running"
-	msg+="\n"
-	msg+="	and connected to the VPN:"
-	msg+="\n"
-	msg+="\n"
-	msg+="		\${yellowFontColor}sudo wg show \${INTERFACE_NAME}\${resetColors}"
-	msg+="\n"
-	msg+="\n"
-	msg+="	If this system is properly connected to the VPN, the output will look something like this:"
-	msg+="\n"
-	msg+="\n"
-	msg+="\${yellowFontColor}"
-	msg+="		interface: stests"
-	msg+="\n"
-	msg+="		public key: YR2/kYQ0cyTGxG/Xl8DT08Qz3OR30R4psNgp19ZyDhA="
-	msg+="\n"
-	msg+="		private key: (hidden)"
-	msg+="\n"
-	msg+="		listening port: 31491"
-	msg+="\n"
-	msg+="\n"
-	msg+="		peer: IwjK4SklFZPc/ethaO6eGTqRTZ+1cn2+vPHtJaptCH4="
-	msg+="\n"
-	msg+="		endpoint: 98.32.230.166:1001"
-	msg+="\n"
-	msg+="		allowed ips: 10.7.0.0/24"
-	msg+="\n"
-	msg+="		latest handshake: 35 seconds ago"
-	msg+="\n"
-	msg+="		transfer: 329.96 KiB received, 107.75 KiB sent"
-	msg+="\n"
-	msg+="		persistent keepalive: every 25 seconds"
-	msg+="\${resetColors}"
-	msg+="\n"
-	msg+="\n"
-	msg+="	If this system is NOT properly connected to the VPN, the output will look something like this:"
-	msg+="\n"
-	msg+="\n"
-	msg+="\${yellowFontColor}"
-	msg+="		interface: stests"
-	msg+="\n"
-	msg+="		public key: YR2/kYQ0cyTGxG/Xl8DT08Qz3OR30R4psNgp19ZyDhA="
-	msg+="\n"
-	msg+="		private key: (hidden)"
-	msg+="\n"
-	msg+="		listening port: 31491"
-	msg+="\n"
-	msg+="\n"
-	msg+="		peer: IwjK4SklFZPc/ethaO6eGTqRTZ+1cn2+vPHtJaptCH4="
-	msg+="\n"
-	msg+="		endpoint: 98.32.230.166:1001"
-	msg+="\n"
-	msg+="		allowed ips: 10.7.0.0/24"
-	msg+="\${resetColors}"
-	msg+="\n"
-	msg+="\n"
-	msg+="	This setup script file can now be deleted from the system."
-	
-	exitProgram "\${headerMessage}" "\${msg}" "\${backgroundColor}" "\${exitStatus}"
-
-fi
-EOF
+	generateNewDeviceSetupScript "${pFilePath}" pNetworkValues1268 "${scriptContentForConfiguringWireGuardInterface}" "${bringWireGuardInterfaceUpCommand}" "${bringWireGuardInterfaceDownCommand}"
 
 }
 # end of ::generateNewDeviceSetupScriptForNetplan
@@ -2324,6 +2117,242 @@ EOF
 	echo "${output}"
 }
 # end of ::generateScriptContentExitProgramFunction
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentForNetplanToConfigureWireGuardInterface
+# 
+# Generates a script containing commands for setting up a new device that is using Netplan network
+# management tools.
+#
+# All that is done here is to enable the interface to start on boot.
+#
+# Parameters:
+#
+# $1	Reference to associative array key-value pair for network values.
+#
+# Return:
+#
+# On return, the generated text is echoed.
+#
+
+generateScriptContentForNetplanToConfigureWireGuardInterface() {
+
+    local -n pNetworkValues2349=$1
+	
+	# Single quote EOF used so that variables not resolved in this function (will be resolved in
+	# final script)
+	
+	local output=$(cat << 'EOF'
+
+echo ""
+echo "Enabling interface to start on boot."
+
+# Enable wireguard interface to start on boot
+sudo systemctl enable wg-quick@\${INTERFACE_NAME}.service
+
+EOF
+)
+
+	echo "${output}"
+
+}
+# end of ::generateScriptContentForNetplanToConfigureWireGuardInterface
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentForNetplanToBringWireGuardInterfaceUp
+# 
+# Generates a script containing commands for bringing up/starting the WireGuard interface on a 
+# device that is using Netplan network management tools.
+#
+# The `sudo wg-quick up [Interface Name]` command can be used to initialize the interface.
+#
+# Return:
+#
+# On return, the generated text is echoed.
+#
+
+generateScriptContentForNetplanToBringWireGuardInterfaceUp() {
+	
+	# Single quote EOF used so that variables not resolved in this function (will be resolved in
+	# final script)
+	
+	# Output is tabbed over one time because of where it is used in the final script
+	
+	local output=$(cat << 'EOF'
+	sudo wg-quick up ${INTERFACE_NAME}
+EOF
+)
+
+	echo "${output}"
+
+}
+# end of ::generateScriptContentForNetplanToBringWireGuardInterfaceUp
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentForNetplanToBringWireGuardInterfaceDown
+# 
+# Generates a script containing commands for bringing down/stopping the WireGuard interface on a 
+# device that is using Netplan network management tools.
+#
+# The `sudo wg-quick down [Interface Name]` command can be used.
+#
+# Return:
+#
+# On return, the generated text is echoed.
+#
+
+generateScriptContentForNetplanToBringWireGuardInterfaceDown() {
+	
+	# Single quote EOF used so that variables not resolved in this function (will be resolved in
+	# final script)
+	
+	# Output is tabbed over two times because of where it is used in the final script
+	
+	local output=$(cat << 'EOF'
+		sudo wg-quick down ${INTERFACE_NAME}
+EOF
+)
+
+	echo "${output}"
+
+}
+# end of ::generateScriptContentForNetplanToBringWireGuardInterfaceDown
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentForTraditionalifupdownToConfigureWireGuardInterface
+# 
+# Generates a script containing commands for setting up a new device that is using the traditional 
+# ifupdown network management tools.
+#
+# The `sudo wg-quick up [Interface Name]` command does not properly set up the interface and does
+# not create the necessary files in /etc/network/interfaces.d/
+#
+# Parameters:
+#
+# $1	Reference to associative array key-value pair for network values.
+#
+# Return:
+#
+# On return, the generated text is echoed.
+#
+
+generateScriptContentForTraditionalifupdownToConfigureWireGuardInterface() {
+
+    local -n pNetworkValues2351=$1
+	
+	# No quotes around EOF used so that variables are resolved in this function. Use \ to escape
+	# so that variables will be resolved in final script.
+	
+	local output=$(cat << EOF
+
+# Create network interface configuration file for traditional ifupdown
+
+readonly NETWORK_INTERFACE_CONFIG_FILE_ABS_PATH="/etc/network/interfaces.d/\${INTERFACE_NAME}"
+
+cat > "\${NETWORK_INTERFACE_CONFIG_FILE_ABS_PATH}" <<EOFE
+
+# indicate that interface should be created when the system boots, and on ifup -a
+auto \${INTERFACE_NAME}
+
+# describe wg0 as an IPv4 interface with static address
+iface \${INTERFACE_NAME} inet static
+
+		# the IP address of this client on the WireGuard network
+        address ${pNetworkValues2351["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}/${pNetworkValues2351["KEY_SUBNET_MASK_CIDR_NOTATION"]}
+
+        # before ifup, create the device with this ip link command
+        pre-up ip link add \${INTERFACE_NAME} type wireguard
+
+        # before ifup, set the WireGuard config from earlier
+        pre-up wg setconf \${INTERFACE_NAME} \${WG_INTERFACES_FOLDER_PATH}/\${INTERFACE_NAME}.conf
+
+        # after ifdown, destroy the wg0 interface
+        post-down ip link del \${INTERFACE_NAME}
+
+EOFE
+
+# end of Create network interface configuration file for traditional ifupdown
+
+EOF
+)
+
+	echo "${output}"
+
+}
+# end of ::generateScriptContentForTraditionalifupdownToConfigureWireGuardInterface
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentForTraditionalifupdownToBringWireGuardInterfaceUp
+# 
+# Generates a script containing commands for bringing up/starting the WireGuard interface on a 
+# device that is using Netplan network management tools.
+#
+# The `sudo wg-quick up [Interface Name]` command does not properly set up the interface and does
+# not create the necessary files in /etc/network/interfaces.d/
+# Generates a linux setup script for the new device.
+#
+# In place of the `sudo wg-quick up [Interface Name]` command, the command `sudo ifup [Interface Name]`
+# is used.
+#
+# Return:
+#
+# On return, the generated text is echoed.
+#
+
+generateScriptContentForTraditionalifupdownToBringWireGuardInterfaceUp() {
+	
+	# Single quote EOF used so that variables not resolved in this function (will be resolved in
+	# final script)
+	
+	# Output is tabbed over one time because of where it is used in the final script
+	
+	local output=$(cat << 'EOF'
+	sudo ifup ${INTERFACE_NAME}
+EOF
+)
+
+	echo "${output}"
+
+}
+# end of ::generateScriptContentForTraditionalifupdownToBringWireGuardInterfaceUp
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateScriptContentForTraditionalifupdownToBringWireGuardInterfaceDown
+# 
+# Generates a script containing commands for bringing down/stopping the WireGuard interface on a 
+# device that is using Netplan network management tools.
+#
+# The `sudo wg-quick down [Interface Name]` is used along with `sudo ifdown [Interface Name]`. Both
+# are used for redundancy.
+#
+# Return:
+#
+# On return, the generated text is echoed.
+#
+
+generateScriptContentForTraditionalifupdownToBringWireGuardInterfaceDown() {
+	
+	# Single quote EOF used so that variables not resolved in this function (will be resolved in
+	# final script)
+	
+	# Output is tabbed over two times because of where it is used in the final script
+	
+	local output=$(cat << 'EOF'
+		sudo wg-quick down ${INTERFACE_NAME}
+		sudo ifdown ${INTERFACE_NAME}
+EOF
+)
+
+	echo "${output}"
+
+}
+# end of ::generateScriptContentForTraditionalifupdownToBringWireGuardInterfaceDown
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
