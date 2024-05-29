@@ -157,6 +157,20 @@ Example usage:
 
 ..................
 
+**`showDeviceQR [Interface Name] [Device Index]`**
+
+Displays the phone tunnel configuration file as a QR code for the specified device.
+
+The QR code is generated using the tunnel configuration file that was created for phones when the device was added to an interface.
+
+To determine a device index, use command `showInterfaceSkoonie [Interface Name]`.
+
+Example usage:
+
+`sudo ./wg-skoonie.sh showDeviceQR "wg0" "37"`
+
+..................
+
 **`showAllInterfacesSkoonie`**
 
 Lists all of the interfaces and the network details saved by wg-skoonie.

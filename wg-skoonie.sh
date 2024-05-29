@@ -27,7 +27,7 @@
 # ::Global Variables
 
 readonly PROGRAM_NAME="WireGuard Skoonie Wrapper"
-readonly VERSION_NUMBER="1.2.0-dev27"
+readonly VERSION_NUMBER="1.2.0-dev31"
 
 readonly SCRIPT_DIR=$(dirname "$(realpath "$0")")
 readonly SCRIPT_ABS_FILE_PATH=$(realpath "$0")
@@ -3498,6 +3498,36 @@ outputHelp() {
 	msg+="\n"
 	msg+="\n"
 	msg+="	sudo ./wg-skoonie.sh removeDevice \"wg0\" \"37\""
+	
+	# showDeviceQR Command
+	msg+="\n"
+	msg+="\n"
+	msg+="${yellowFontColor}"
+	msg+="showDeviceQR [Interface Name] [Device Index]"
+	msg+="${resetColors}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	Displays the phone tunnel configuration file as a QR code for"
+	msg+="\n"
+	msg+="	the specified device."
+	msg+="\n"
+	msg+="\n"
+	msg+="	The QR code is generated using the tunnel configuration file"
+	msg+="\n"
+	msg+="	that was created for phones when the device was added to an"
+	msg+="\n"
+	msg+="	interface."
+	msg+="\n"
+	msg+="\n"
+	msg+="	To determine a device index, use command "
+	msg+="\n"
+	msg+="		showInterfaceSkoonie [Interface Name]."
+	msg+="\n"
+	msg+="\n"
+	msg+="	Example usage:"
+	msg+="\n"
+	msg+="\n"
+	msg+="	sudo ./wg-skoonie.sh showDeviceQR \"wg0\" \"37\""
 	
 	# showAllInterfacesSkoonie Command
 	msg+="\n"
