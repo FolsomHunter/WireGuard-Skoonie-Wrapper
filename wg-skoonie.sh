@@ -27,9 +27,10 @@
 # ::Global Variables
 
 readonly PROGRAM_NAME="WireGuard Skoonie Wrapper"
-readonly VERSION_NUMBER="1.2.0-dev10"
+readonly VERSION_NUMBER="1.2.0-dev27"
 
 readonly SCRIPT_DIR=$(dirname "$(realpath "$0")")
+readonly SCRIPT_ABS_FILE_PATH=$(realpath "$0")
 
 readonly WG_SKOONIE_INTERFACES_FOLDER_PATH="${SCRIPT_DIR}/interfaces"
 readonly WG_INTERFACES_FOLDER_PATH="/etc/wireguard"
@@ -180,7 +181,7 @@ addDevice() {
 	readInterfaceIniFile "$interfaceSkoonieIniFilePath" networkValues
 	
 	# Determine the index of the next device (new device)
-	networkValues["KEY_NEW_DEVICE_INDEX"]=$(( ${#deviceIpAddresses[@]} + 1 ))
+	networkValues["KEY_NEW_DEVICE_INDEX"]=$(( ${#deviceIpAddresses[@]} ))
 	
 	# Determine the most recent IP addrress used (might be server address)
 	local mostRecentIpAddressDottedDecimal
@@ -817,6 +818,8 @@ generateNewDeviceClientConfigFilesAndSetupScripts() {
 	generateNewDeviceConfigFileAndSetupScriptForUbuntuGreaterThanOrEqualToV17_10 pNetworkValues786
 	
 	generateNewDeviceConfigFileForWindows pNetworkValues786
+	
+	generateNewDeviceConfigFileForPhone pNetworkValues786
 
 }
 # end of ::generateNewDeviceClientConfigFilesAndSetupScripts
@@ -1527,6 +1530,59 @@ EOF
 
 }
 # end of ::generateNewDeviceConnectivityCheckerScriptForNetplan
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
+# ::generateNewDeviceConfigFileForPhone
+# 
+# Generates the client configuration file using the passed in parameters for a phone. This should
+# work with both Android and Apple.
+#
+# No setup script is generated because using the GUI to import a tunnel configuration file is 
+# extremely easy using the app.
+#
+# Parameters:
+#
+# $1	Reference to associative array key-value pair for network values.
+#
+# Return:
+#
+# Upon return, the client configuration file will be saved to:
+#
+# 	[Folder]/[WireGuard Interface Name]/device[Device index]/phone/[WireGuard Interface Name].conf
+# 
+# 	For example: /etc/wireguard/wg0/device0/phone/wg0.conf
+#
+# The absolute file path of the configuration file is stored at:
+#	pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_PHONE_ABS_PATH"]
+#
+
+generateNewDeviceConfigFileForPhone() {
+
+	local -n pNetworkValues1559=$1
+	
+	local folderPath="${pNetworkValues1559["KEY_NEW_DEVICE_CLIENT_CONFIG_FILES_FOLDER"]}/phone"
+	local configFilePath="${folderPath}/${pNetworkValues1559["KEY_INTERFACE_NAME"]}.conf"
+	pNetworkValues1559["KEY_NEW_DEVICE_CLIENT_CONFIG_PHONE_FILE_PATH"]="${configFilePath}"
+	
+	mkdir -p "$folderPath"
+	
+	cat > "${pNetworkValues1559["KEY_NEW_DEVICE_CLIENT_CONFIG_PHONE_FILE_PATH"]}" <<EOF
+[Interface]
+PrivateKey = ${pNetworkValues1559["KEY_NEW_DEVICE_PRIVATE_KEY"]}
+Address = ${pNetworkValues1559["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}/${pNetworkValues1559["KEY_SUBNET_MASK_CIDR_NOTATION"]}
+
+[Peer]
+PublicKey = ${pNetworkValues1559["KEY_SERVER_PUBLIC_KEY"]}
+Endpoint = ${pNetworkValues1559["KEY_SERVER_ENDPOINT"]}
+AllowedIPs = ${pNetworkValues1559["KEY_NETWORK_ADDRESS_DOTTED_DECIMAL"]}/${pNetworkValues1559["KEY_SUBNET_MASK_CIDR_NOTATION"]}
+PersistentKeepalive = 25
+EOF
+
+	pNetworkValues1559["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_PHONE_ABS_PATH"]=$(realpath "${pNetworkValues1559["KEY_NEW_DEVICE_CLIENT_CONFIG_PHONE_FILE_PATH"]}")
+
+}
+# end of ::generateNewDeviceConfigFileForPhone
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
@@ -2817,6 +2873,27 @@ logDeviceAddedSuccessfullyMessage() {
 	msg+="	None. Importing the tunnel configuration file via WireGuard GUI"
 	msg+="\n"
 	msg+="	on Windows handles everything."
+	msg+="\n"
+	msg+="\n"
+	msg+="\n"
+	msg+="	${yellowFontColor}Phones (Android & Apple)${resetColors}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	To generate a QR code for easy import into the app:"
+	msg+="\n"
+	msg+="	sudo ${SCRIPT_ABS_FILE_PATH} showDeviceQR \"${pNetworkValues["KEY_INTERFACE_NAME"]}\" \"${pNetworkValues["KEY_NEW_DEVICE_INDEX"]}\""
+	msg+="\n"
+	msg+="\n"
+	msg+="	Tunnel configuration file:"
+	msg+="\n"
+	msg+="	${pNetworkValues["KEY_NEW_DEVICE_CLIENT_CONFIG_FILE_PHONE_ABS_PATH"]}"
+	msg+="\n"
+	msg+="\n"
+	msg+="	Setup script file:"
+	msg+="\n"
+	msg+="	None. Importing the tunnel configuration file via WireGuard GUI"
+	msg+="\n"
+	msg+="	on the phone app handles everything."
 	msg+="\n"
 	msg+="\n"
 	msg+="\n"
@@ -4202,6 +4279,108 @@ showAllInterfacesSkoonie() {
 ##--------------------------------------------------------------------------------------------------
 
 ##--------------------------------------------------------------------------------------------------
+# ::showDeviceQRCode
+# 
+# Generates and outputs the QR code for the device specified by pDeviceIndex using the tunnel 
+# configuration files generated for the phone.
+#
+# Parameters:
+#
+# $1	Interface name.
+# $2	Device index.
+#
+
+showDeviceQRCode() {
+
+	local pInterfaceName=$1
+	local pDeviceIndex=$2
+
+	local interfaceSkoonieIniFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/${pInterfaceName}.skoonieini"
+	
+	local statusGood=0
+	
+	checkInterfaceValidity "${pInterfaceName}" "${interfaceSkoonieIniFilePath}"
+	statusGood=$?
+	
+	# Return with error if status not good
+	if [[ "${statusGood}" -ne 0 ]] ; then
+		return 1
+	fi
+	
+	local -A networkValues
+	
+	# Read existing devices on this interface from file
+	readInterfaceIniFile "$interfaceSkoonieIniFilePath" networkValues
+	
+	isIndexInArray ${pDeviceIndex} deviceIpAddresses
+	statusGood=$?
+	
+	# Return with error if status not good
+	local yellowFontColor="\033[33m"
+	local resetColors="\033[0m"
+	
+	# Check if device index is valid
+	if [[ "${statusGood}" -ne 0 ]] ; then
+		local msg="Device index '${pDeviceIndex}' was not found in interface '${pInterfaceName}'."
+		msg+="\n"
+		msg+="\n"
+		msg+="	Details for interface '${pInterfaceName}' for wg-skoonie were loaded from:"
+		msg+="\n"
+		msg+="\n"
+		msg+="		${yellowFontColor}${interfaceSkoonieIniFilePath}${resetColors}"
+		logErrorMessage	"${msg}"
+		return 1
+	fi
+	
+	# Check if device configuration files still exist on the machine
+	local deviceConfigurationFilePath="${WG_SKOONIE_INTERFACES_FOLDER_PATH}/${pInterfaceName}/device${pDeviceIndex}/phone/${pInterfaceName}.conf"
+	
+	if [ ! -f "${deviceConfigurationFilePath}" ]; then
+		local msg=""
+		msg+="The phone tunnel configuration files for Device ${pDeviceIndex} were not"
+		msg+="\n"
+		msg+=" 	found on this system."
+		msg+="\n"
+		msg+="\n"
+		msg+="	Expected to find tunnel configuration files for a phone here:"
+		msg+="\n"
+		msg+="\n"
+		msg+="		${yellowFontColor}${deviceConfigurationFilePath}${resetColors}"
+		logErrorMessage	"${msg}"
+		return 1
+	fi
+	
+	# Check if program to generate QR codes is installed
+	if ! command -v qrencode >/dev/null 2>&1; then
+		local msg=""
+		msg+="An installation of qrencode cannot be found on this system."
+		msg+="\n"
+		msg+="\n"
+		msg+="	Try using \"sudo apt install qrencode\"."
+		logErrorMessage	"${msg}"
+		return 1
+	fi
+	
+	local deviceDetailsMsg=$(generateDeviceDetails "${pDeviceIndex}")
+	
+	qrOutput=$(qrencode -t ansiutf8 < "${deviceConfigurationFilePath}")
+	
+	# Removal was a success
+	local msg="	QR Code for Device"
+	msg+="\n"
+	msg+="\n"
+	msg+="${deviceDetailsMsg}"
+	msg+="\n"
+	msg+="\n"
+	msg+="${qrOutput}"
+	
+	logSuccessMessage "${msg}"
+
+}
+# end of ::showDeviceQRCode
+##--------------------------------------------------------------------------------------------------
+
+##--------------------------------------------------------------------------------------------------
 # ::showInterfaceDetailsFromSkoonieIniFiles
 # 
 # Outputs details saved in the skoonie ini files for the passed in interface.
@@ -4391,6 +4570,12 @@ case "$1" in
 		# $2	Interface name.
 		# $3	Device index.
 		removeDeviceByIndex "${2}" "${3}"
+		;;
+		
+	"showDeviceQR")
+		# $2	Interface name.
+		# $3	Device index.
+		showDeviceQRCode "${2}" "${3}"
 		;;
 		
 	"addInterface")
