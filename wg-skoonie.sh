@@ -27,7 +27,7 @@
 # ::Global Variables
 
 readonly PROGRAM_NAME="WireGuard Skoonie Wrapper"
-readonly VERSION_NUMBER="1.2.0-dev31"
+readonly VERSION_NUMBER="1.2.0-dev32"
 
 readonly SCRIPT_DIR=$(dirname "$(realpath "$0")")
 readonly SCRIPT_ABS_FILE_PATH=$(realpath "$0")
@@ -86,6 +86,9 @@ addDeviceToWireGuard() {
 	addDeviceToWireGuardCmd='wg set '"${pNetworkValues["KEY_INTERFACE_NAME"]}"' peer '"${pNetworkValues["KEY_NEW_DEVICE_PUBLIC_KEY"]}"' allowed-ips "'"${pNetworkValues["KEY_NEW_DEVICE_IP_ADDRESS_DOTTED_DECIMAL"]}"'"  2>&1'
 	
 	addDeviceWireGuardOutput=$(eval "${addDeviceToWireGuardCmd}")
+	
+	# Save the config to file
+	wg-quick save ${pNetworkValues["KEY_INTERFACE_NAME"]}
 	
 	listDevicesWireGuard=$(sudo wg)
 
