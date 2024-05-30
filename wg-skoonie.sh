@@ -3933,6 +3933,9 @@ removeDeviceFromWireGuard() {
 	removeDeviceFromWireGuardOutput=$(${removeDeviceFromWireGuardCmd} 2>&1)
 	local removedFromWgStatus=$?
 	
+	# Save the config to file
+	wg-quick save ${pInterfaceName}
+	
 	# Check if device removal from WireGuard was successful
 	if [[ "${removedFromWgStatus}" -ne 0 ]] ; then
 	
