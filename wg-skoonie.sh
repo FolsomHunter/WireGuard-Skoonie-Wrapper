@@ -2208,7 +2208,7 @@ echo ""
 echo "Enabling interface to start on boot."
 
 # Enable wireguard interface to start on boot
-sudo systemctl enable wg-quick@\${INTERFACE_NAME}.service
+sudo systemctl enable wg-quick@${INTERFACE_NAME}.service
 
 EOF
 )
